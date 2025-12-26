@@ -1,0 +1,1272 @@
+------------------------------------------------------------------------
+
+---
+title: "Homework VI"
+author: "Sarah Bertoni"
+date: 28 February 2025
+format:
+  pdf: 
+    fontsize: 9pt
+    mainfont: Garamond
+    sansfont: Garamond
+editor: visual
+output: 
+  html_document:
+    theme: cosmo
+    latex_engine: pdflatex
+    huxreg_options: "tabular={l|ccc}, tablewidth=0.1\\textwidth, tablefont=\\footnotesize"
+    fig_caption: true
+execute:
+  echo: false
+  warning: false
+prefer-html: true
+---
+
+```{r}
+library("modelsummary")
+library("haven")
+library("tidyverse")
+library("kableExtra")
+library("stargazer")
+library("huxtable")
+library("knitr")
+library("spatstat")
+library("gridExtra")
+library(tinytable)
+```
+
+# 
+
+```{r setup, include=FALSE}
+if (!require("pacman")) install.packages("pacman") 
+pacman::p_load(tidyverse, dplyr, knitr, haven, ggplot2, kableExtra, dplyr, gtsummary,gridExtra, stargazer)
+```
+
+# Education in France
+
+## 1 Distribution of test scores and summary stats
+
+**Compare the distributions of raw test scores for each test. Comment.**
+
+The density plots showcases scores distributions across the different tests, namely Global, Literacy, and Math. For each year, the average of test scores is between 65 and 70, for every subject. However, while there are not huge variations across years, we observe a decreasing trend in average scores for every subject, suggesting a worsening of performance over time.
+
+Another interesting characteristic regards the distribution of the grades. Global scores are more concentrated towards the top, while later distributions exhibit a wider tail. The distribution of literature scores is shifted towards the left, indicating lower scores. Math exhibits a different trend: while the earlier average is indeed higher, the distribution flattens over time, with the majority of students oscillating in a bigger range.
+
+```{r, fig.width=7, fig.height=5}
+fe_data <- read_dta("panel97.dta")
+
+mean_t1 <- mean(fe_data$gscore_t1, na.rm = TRUE)
+mean_t2 <- mean(fe_data$gscore_t2, na.rm = TRUE)
+mean_t3 <- mean(fe_data$gscore_t3, na.rm = TRUE)
+
+mean_matht2 <- mean(fe_data$mscore_t2, na.rm = TRUE)
+mean_matht3 <- mean(fe_data$mscore_t3, na.rm = TRUE)
+
+mean_lit2 <- mean(fe_data$fscore_t2, na.rm = TRUE)
+mean_lit3 <- mean(fe_data$fscore_t3, na.rm = TRUE)
+
+#global scores density
+global_graph =ggplot(fe_data) +
+  geom_density(aes(x = gscore_t1, color = "Global Score (1997)", fill = "Global Score (1997)"), alpha = 0.4) +
+  geom_density(aes(x = gscore_t2, color = "Global Score (1999/2000)", fill = "Global Score (1999/2000)"), alpha = 0.4) +
+  geom_density(aes(x = gscore_t3, color = "Global Score (2002/2003)", fill = "Global Score (2002/2003)"), alpha = 0.4) +
+  geom_vline(aes(xintercept = mean_t1, color = "Global Score (1997)"), linetype = "dashed") +
+  geom_vline(aes(xintercept = mean_t2, color = "Global Score (1999/2000)"), linetype = "dashed") +
+  geom_vline(aes(xintercept = mean_t3, color = "Global Score (2002/2003)"), linetype = "dashed") +
+  theme_minimal() +
+  labs(title = "Density Plot of Global Scores", x = "Score", y = "Density") +
+  scale_color_manual(name = "Legend", values = c("Global Score (1997)" = "pink2", 
+                                                 "Global Score (1999/2000)" = "palegreen2", 
+                                                 "Global Score (2002/2003)" = "steelblue2")) +
+  scale_fill_manual(name = "Legend", values = c("Global Score (1997)" = "pink2", 
+                                                "Global Score (1999/2000)" = "palegreen2", 
+                                                "Global Score (2002/2003)" = "steelblue2"))+theme(
+    plot.title = element_text(size = 9),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6),
+    legend.text = element_text(size = 6),
+        legend.title = element_text(size = 7)) 
+
+
+#literacy scores
+lit_graph = ggplot(fe_data) +
+  geom_density(aes(x = fscore_t2, color = "Lit. Score (1999/2000)", fill = "Lit. Score (1999/2000)"), alpha = 0.4) +
+  geom_density(aes(x = fscore_t3, color = "Lit. Score (2002/2003)", fill = "Lit. Score (2002/2003)"), alpha = 0.4) +
+  geom_vline(aes(xintercept = mean_lit2, color = "Lit. Score (1999/2000)"), linetype = "dashed") +
+  geom_vline(aes(xintercept = mean_lit3, color = "Lit. Score (2002/2003)"), linetype = "dashed") +
+  theme_minimal() +
+  labs(title = "Density Plot of Lit. Scores", x = "Score", y = "Density") +
+  scale_color_manual(name = "Legend", values = c("Lit. Score (1999/2000)" = "cyan4", 
+                                                 "Lit. Score (2002/2003)" = "orchid4")) +
+  scale_fill_manual(name = "Legend", values = c("Lit. Score (1999/2000)" = "cyan4", 
+                                                 "Lit. Score (2002/2003)" = "orchid4")) +theme(
+    plot.title = element_text(size = 9),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6),
+    legend.text = element_text(size = 6),
+        legend.title = element_text(size = 7)) 
+
+#math scores
+math_graph = ggplot(fe_data) +
+  geom_density(aes(x = mscore_t2, color = "Lit Score (1999/2000)", fill = "Math Score (1999/2000)"), alpha = 0.4) +
+  geom_density(aes(x = mscore_t3, color = "Math Score (2002/2003)", fill = "Math Score (2002/2003)"), alpha = 0.4) +
+  geom_vline(aes(xintercept = mean_matht2, color = "Math Score (1999/2000)"), linetype = "dashed") +
+  geom_vline(aes(xintercept = mean_matht3, color = "Math Score (2002/2003)"), linetype = "dashed") +
+  theme_minimal() +
+  labs(title = "Density Plot of Math Scores", x = "Score", y = "Density") +
+  scale_color_manual(name = "Legend", values = c("Math Score (1999/2000)" = "salmon2", 
+                                                 "Math Score (2002/2003)" = "forestgreen")) +
+  scale_fill_manual(name = "Legend", values = c("Math Score (1999/2000)" = "salmon2", 
+                                                 "Math Score (2002/2003)" = "forestgreen")) +theme(
+    plot.title = element_text(size = 9),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6),
+    legend.text = element_text(size = 6),
+        legend.title = element_text(size = 7)) 
+
+grid.arrange(global_graph, lit_graph, math_graph)
+
+```
+
+From the summary statistic it is possible to clearly observe that the median is higher than the mean for every test score in every year, which may indicate the presence of outliers skewing the distribution.
+
+```{r}
+scoresd <- fe_data%>%
+  select("gscore_t1", "gscore_t2", "gscore_t3", 
+              "fscore_t2", "mscore_t2", "fscore_t3", "mscore_t3")
+
+#Method 1 to compare distribution: table with min, max, mean, SD, etc...
+scores <- data.frame(
+    Variable = names(scoresd),
+    Min = sapply(scoresd, function(x) min(x,  na.rm = TRUE) ),
+    P25 = sapply(scoresd, function(x) quantile(x, 0.25,  na.rm = TRUE) ),
+    Mean = sapply(scoresd, function(x) mean(x,  na.rm = TRUE) ),
+    Median = sapply(scoresd, function(x) median(x,  na.rm = TRUE) ),
+    P75 = sapply(scoresd, function(x) quantile(x, 0.75,  na.rm = TRUE) ),
+    Max = sapply(scoresd, function(x) max(x, na.rm = TRUE) ),
+    Std.dev = sapply(scoresd, function(x) sd(x, na.rm = TRUE) ), 
+    row.names = NULL
+  )%>%
+  mutate(
+    across(where(is.numeric), round, 1),
+    Year = (sapply(strsplit(Variable, "_t"), "[[", 2)),
+    test = (sapply(strsplit(Variable, "_t"), "[[", 1)), 
+    order = case_when(
+      test == "gscore" ~ 1,
+      test == "fscore" ~ 2,
+      test == "mscore" ~ 3)
+    )%>%
+  arrange(order, Year)%>%
+  select(test, Year, Min, P25, Mean, Median, P75, Max, Std.dev)
+
+kable(scores[-1], 
+      caption = "Summary of test scores",
+      #col.names = c(names(scores)),
+      align = "c") %>%
+      group_rows("Global scores", 1, 2) %>%  
+      group_rows("Literacy scores", 4, 5)  %>%
+      group_rows("Math scores", 6, 7 )  %>%
+  kable_styling(full_width = F, 
+                position = "center") %>%  kable_classic_2()
+    
+```
+
+## 2 Missing values
+
+**How many missing values are there for each test score? Is this a problem if you want to study pupils' trajectories or progress?**
+
+Missing values increase for later years, which may represent an issue in tracking students' progress over time if the missing variables are not missing at random. It is highly likely that the missing values are related to students dropping out of school, and therefore students with lower grades. If that is the case, the estimated averages and distributions for later years will be overestimated due to the upward bias.
+
+Moreover, a reduced sample size will result in higher standard errors and less precise estimation.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+na_counts <- fe_data %>%
+  summarise(
+    `1997` = sum(is.na(gscore_t1)),
+    `1999/2000` = sum(is.na(gscore_t2)),
+    `2002/2003` = sum(is.na(gscore_t3)),
+    `1999/2000 ` = sum(is.na(mscore_t2)),
+    `2002/2003 ` = sum(is.na(mscore_t3)),
+    `1999/2000  ` = sum(is.na(fscore_t2)),
+    `2002/2003  `= sum(is.na(fscore_t3))
+  ) %>%
+  t() %>%
+  as.data.frame()
+
+colnames(na_counts) <- "Missing Values"
+na_counts <- cbind(Test_Score = rownames(na_counts), na_counts)
+rownames(na_counts) <- NULL
+
+kable(na_counts, caption = "Missing values of test score", digits = 2)%>%
+  kable_classic_2(full_width = F, html_font = "Garamound") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
+  row_spec(0, bold = T)  %>% 
+    column_spec(2, bold = T) %>% pack_rows("Global",1,3)%>%
+ pack_rows("Math",4,6) %>%
+ pack_rows("Literature",6,7)
+```
+
+## 3 Global score after 3 years against the entry score
+
+**Plot the global score after 3 years against the entry score. Can you find a more meaningful way to present this information? Comment.**
+
+The graph shows the correlation between students' global score in the entry test in the x axis and after three years, in the y axis. We observe a positive correlation, meaning that students with higher initial scores tend to have relatively higher scores after three years; we do not observe a perfect linear correlation since many points lie below the 45 degree line, meaning that students tend to perform better in the initial exam.
+
+```{r, fig.width=4.5, fig.height=4}
+ggplot(fe_data, aes(x = gscore_t1, y = gscore_t2)) + 
+  geom_point(alpha = 0.4, color="wheat3") + 
+  geom_smooth(color="wheat4") +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "brown") +
+  ggtitle("Global Score After 3 Years vs Initial Score") + 
+  xlab("Initial Global Score") + 
+  ylab("Global Score After 3 Years") + 
+  theme_minimal() +theme(
+    plot.title = element_text(size = 9),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6),
+    legend.text = element_text(size = 6),
+        legend.title = element_text(size = 7)) 
+```
+
+We perform the regression to better observe the correlation, and we do find a coefficient of 0.905, which translate in an almost one to one association between scores, with students performing better in initial tests: a one point higher initial test score is associated with a 0.905 higher test score after 3 years.
+
+```{r}
+
+model<-fe_data %>%  mutate("Entry score"=gscore_t1)
+model <-  lm(gscore_t3 ~ `Entry score`, data=model)
+
+model <- huxreg("Dependent variable: score after 3 years" = model,
+                  error_format = "({std.error})",
+                  error_pos = "below",
+                  statistics = c(N = "nobs"),
+                  note = "{stars}",
+                  align = "center") %>%
+  set_caption("Correlation between test scores")
+set_latex_float(model, value = "H")
+```
+
+## 4 Analyzing progress
+
+**a) With the variables at hand, how would you measure a pupil's progress between the first and the third year of primary school? Between the third year and the final year of primary school?**
+
+We can measure a pupil's progress between the first and the third year and between the third year and the final year of primary school either by looking at absolute or relative scores.
+
+To observe changes in absolute terms we could merely calculate them as the difference between the scores in two test periods: $\Delta \text{Score} = \text{Score}_{t2} - \text{Score}_{t1}$
+
+However, to understand the intensity of the change in test scores it may be useful to observe the decile ranks and compute $\Delta d\_gscore = d\_gscore_{t2} - d\_gscore_{t1}$ .
+
+Positive changes in deciles $\Delta d\_gscore > 0$ indicate improvements relative to other students, while $\Delta d\_gscore < 0$ indicate a shift downwards in the score distribution, and $\Delta d\_gscore = 0$ implies that the pupil remained in the same decile.
+
+**b) Implement the strategy you suggest and provide a summary of the distributions of the variables you computed. Comment.**
+
+We compute the relative change of the score of the pupil relative to the whole distribution by plotting the difference between the decile to which the student belongs in the two periods.
+
+Overall, we observe that the distribution did not change drastically, meaning that overall students remained in the same decile. However, we can conclude that between the first and third year students experienced a decrease in scores (distribution skewed to the left) while they experienced a relative improvement between the third and final year.
+
+```{r, fig.width=4, fig.height=4}
+
+ fe_data <- fe_data %>% mutate(delta_d_gscore_1_2 = d_gscore_t2 - d_gscore_t1,  #decile change year 1 - year 3
+    delta_d_gscore_2_3 = d_gscore_t3 - d_gscore_t2) #decile change final year - year 3
+
+p1 = ggplot(fe_data, aes(x = delta_d_gscore_1_2)) + 
+  geom_bar(fill = "darkgrey", alpha = 0.7) + 
+  ggtitle("Distribution of Progress (Decile Change: Year 1 to Year 3)") + 
+  xlab("Change in Decile") + 
+  ylab("Number of Students") + 
+  theme_minimal() +theme(
+    plot.title = element_text(size = 9),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6),
+    legend.text = element_text(size = 6),
+        legend.title = element_text(size = 7)) 
+
+p2 = ggplot(fe_data, aes(x = delta_d_gscore_2_3)) + 
+  geom_bar(fill = "ivory3", alpha = 0.7) + 
+  ggtitle("Distribution of Progress (Decile Change: Year 3 to Final Year)") + 
+  xlab("Change in Decile") + 
+  ylab("Number of Students") + 
+  theme_minimal() +theme(
+    plot.title = element_text(size = 9),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6),
+    legend.text = element_text(size = 6),
+        legend.title = element_text(size = 7)) 
+
+grid.arrange(p1, p2)
+
+```
+
+**b) Summary stats of decile differences**
+
+Between the first and third year the mean of change in decile is negative, indicating an average worsening of relative test score perfomance, which may be due to unbiased estimates (due to missing variables of lower performing students dropping out) .
+
+**Why is the of the change average not zero?** missing values, weaker students are more likely to disappear so average change in decile is negative.
+
+The big differential attrition that is causing the average change to be negative is the missing values between one to two while between two to three there are fewer missing values.
+
+```{r}
+sum_stats_decile <- fe_data %>%
+  select(delta_d_gscore_1_2, delta_d_gscore_2_3)
+
+sum_stats_table_decile <- data.frame(
+  Statistic = c("Mean", "SD", "Min", "Max", "N Obs"),
+  sapply(sum_stats_decile, function(x) c(
+    mean = mean(x, na.rm = TRUE),
+    sd = sd(x, na.rm = TRUE),
+    min = min(x, na.rm = TRUE),
+    max = max(x, na.rm = TRUE),
+    n_obs = sum(!is.na(x))
+  ))
+)
+
+colnames(sum_stats_table_decile) <- c("Statistic", "(Y1-Y3)", "(Y3-Final)")
+rownames(sum_stats_table_decile) <- NULL
+
+
+kable(sum_stats_table_decile, caption = "Summary Statistics of Decile Change", digits = 2)%>%
+  kable_classic_2(full_width = F, html_font = "Garamound") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
+  row_spec(0, bold = T)  %>% 
+    column_spec(2:3, bold = T) 
+
+
+
+```
+
+## 5 Mobility between two successive tests in deciles
+
+**Compute transition matrices across deciles of the global score distribution between test 1 and test 2,then between test 2 and test 3. Comment.**
+
+The transition matrices show higher probabilities closer to the diagonal identity, meaning that students have higher probabilities to remain in the same decile between test taken in different years. Nonetheless, the probability distribution is not perfectly concentrated in the diagonal, meaning that there is some more mobility between the adjacent percentiles.
+
+The least mobile percentiles correspond to the extreme: students in the highest and lowest percentiles have lower probabilities of moving across the distribution.
+
+Between the first and second test, we observe that student that perform in the 10th percentile in the first test have a probability of remaining in the 10th percentile in the second test of 47%, while their probability of moving to a decile lower than the 6th is less than 5%. The same mechanism is in act for low performing students, with students in the 1st decile in the first test having a probability of remainig in that decile of 44% and an almost zero probability of moving to the top decile (0.3%).
+
+Scores between the second and third test highlight the same trend: almost 41% of the students in the bottom decile in the second test remain in such decile in the third test, while less than the 3% manages to move above the 6th decile. Conversely, the probability of being in the 10th decile in the third test is 57% for students belonging to the 10th decile in the previous test.
+
+Middle deciles are more mobile, with students belonging in the 5th decile during the second test having a probability of ending up between the third and eight decile between 10% and 18%.
+
+As a general trend, we observe a slightly higher mobility between the first two tests, especially in the extreme deciles, which may indicate that it is more difficult to move along the score distribution later in the years, with earlier performances and learning outcomes having long lasting effects.
+
+```{r, fig.width=4, fig.height=4}
+matrix21 <- fe_data %>%
+  drop_na()%>%
+  select(d_gscore_t1, d_gscore_t2) %>%
+  group_by(d_gscore_t1) %>%
+  mutate(n_den=n()) %>%
+  group_by(d_gscore_t1, d_gscore_t2, n_den) %>%
+  summarise(n_nom = n())%>%
+  mutate(p = n_nom / n_den *100)%>%
+  select (-c(n_nom, n_den))
+# pivot_wider( names_from=d_gscore_t2, values_from=p)%>%
+#  mutate(across(where(is.numeric), round, 0))
+
+matrix21_grph <-ggplot(matrix21, aes(x = as.factor(d_gscore_t1), y = as.factor(d_gscore_t2), fill = p)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = round(p, 1)), color = "black", size = 4) +  
+  scale_fill_gradient(low = "snow", high = "lightblue4", name = NULL) +  # Removes legend title
+  labs(title = "Heatmap of Decile Rank Transitions",
+       x = "Decile rank on test 1",
+       y = "Decile rank on test 2") +  # No label for 'fill'
+  theme_minimal()+
+  theme(legend.position = "none")+theme(
+    plot.title = element_text(size = 8),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6),
+    legend.text = element_text(size = 6),
+        legend.title = element_text(size = 7))
+
+matrix32 <- fe_data %>%
+  drop_na()%>%
+  select(d_gscore_t2, d_gscore_t3) %>%
+  group_by(d_gscore_t2) %>%
+  mutate(n_den=n()) %>%
+  group_by(d_gscore_t2, d_gscore_t3, n_den) %>%
+  summarise(n_nom = n())%>%
+  mutate(p = n_nom / n_den *100)%>%
+  select (-c(n_nom, n_den)) 
+#  pivot_wider( names_from=d_gscore_t3, values_from=p)%>%
+#  mutate(across(where(is.numeric), round, 0))
+
+matrix32_grph <- ggplot(matrix32, aes(x = as.factor(d_gscore_t2), y = as.factor(d_gscore_t3), fill = p)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = round(p, 1)), color = "black", size = 4) +  
+  scale_fill_gradient(low = "ivory", high = "khaki4", name = NULL) +  # Removes legend title
+  labs(title = "Heatmap of Decile Rank Transitions",
+       x = "Decile rank on test 2",
+       y = "Decile rank on test 3") +  # No label for 'fill'
+  theme_minimal()+
+  theme(legend.position = "none")+theme(
+    plot.title = element_text(size = 8),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6),
+    legend.text = element_text(size = 6),
+        legend.title = element_text(size = 7)) 
+
+grid.arrange(matrix21_grph, matrix32_grph, ncol = 1, nrow=2)
+
+```
+
+## 6 Birth date and scores
+
+#### a) Global test scores of pupils by Month of Birth
+
+**Compare the global test scores of pupils born in January vs. those born in December on each of the three tests ("gscore t1", "gscore t2", "gscore t3") and provide the 95% confidence interval for the difference between test scores. Interpret your findings. (2 points)**
+
+We compare test scores espressed in deciles between pupils born in January and in December across the three global scores, showcasing the 95% confidence interval for the difference between the average scores of the two categories.
+
+```{r}
+means_birth <- fe_data %>% 
+  select(birthm, d_gscore_t1, d_gscore_t2, d_gscore_t3) %>% 
+  pivot_longer(
+    cols = starts_with("d_gscore_"),      # Select columns to pivot
+    names_to = "test",            # Name for the new key column
+    values_to = "value"               # Name for the new value column
+  )%>%
+  group_by(birthm, test)%>%
+  summarise(
+    n = n(),
+    mean = mean(value,  na.rm = TRUE),
+    sd = sd(value,  na.rm = TRUE)
+  )%>%
+  filter(birthm==1 | birthm == 12)%>%
+  mutate(
+    birthm = recode(birthm, "1" = "A", "12" = "B"), #Category A= born in Jan.
+    type = "Birth")%>%
+  rename( cat = birthm) 
+
+means_occ <- fe_data %>% 
+  select(parent_occ, d_gscore_t1, d_gscore_t2, d_gscore_t3) %>% 
+  pivot_longer(
+    cols = starts_with("d_gscore_"),      # Select columns to pivot
+    names_to = "test",            # Name for the new key column
+    values_to = "value"               # Name for the new value column
+  )%>%
+  group_by(parent_occ, test)%>%
+  summarise(
+    n = n(),
+    mean = mean(value,  na.rm = TRUE),
+    sd = sd(value,  na.rm = TRUE)
+  )%>%
+  filter(parent_occ== 3 |  parent_occ== 6)%>%
+  mutate( parent_occ = as.character(parent_occ),
+    parent_occ = recode(parent_occ, `3` = "A", `6` = "B"), #Category A=parents are executives
+    type = "Occupation")%>% 
+  rename( cat = parent_occ)
+
+#Merge both datasets 
+means <- rbind(means_birth, means_occ) %>%
+  pivot_wider(names_from=cat, values_from=c(n, sd, mean))%>%
+  mutate(
+    SE_A = sd_A/sqrt(n_A),
+    SE_B = sd_B/sqrt(n_B),
+    diff = mean_A-mean_B,
+    SE_diff = sqrt( ((sd_A^2)/n_A) + ((sd_B^2)/n_B) ),
+    CI_lower = diff-1.96*SE_diff,
+    CI_upper = diff+1.96*SE_diff,
+         Year = (sapply(strsplit(test, "_t"), "[[", 2)),) %>% mutate(test=recode(test,d_gscore_t1="Global test 1", d_gscore_t2="Global test 2",d_gscore_t3 ="Global test 3"))
+    
+    kable(
+  means[means$type=='Birth', c("test", "mean_A", "mean_B", "diff", "CI_lower", "CI_upper")] %>% 
+    mutate(across(c(mean_A, mean_B, diff, CI_lower, CI_upper), 
+                  ~ format(round(.x, 1), nsmall = 1))),  
+  caption = "Difference in average deciles of pupils born in January and December - global score",
+  col.names = c("Test", "January", "December", "Difference", "Lower CI", "Upper CI"),
+  align = "c",
+  booktabs = TRUE,
+  longtable = TRUE
+)   %>%
+  kable_styling(full_width = F, position = "center",latex_options = c("hold_position")) %>%
+  footnote(general = "Differences are calculated as Mean A - Mean B. CI represents a 95% confidence interval.",
+           threeparttable = TRUE) %>% kable_classic_2()  
+```
+
+Pupils born in January perform consistently better in the tests, with the difference being statistically different from zero at the 95% level for every test. The difference in deciles decreases for subsequent tests.
+
+Such results can be explained by the fact that pupils born in January are almost one year older than pupils born in December, while being in the same grade; the age advantage, however, seems to shrinken over the years, with students seemingly catching up to the same level. It is intuitive why the effect may be particurary relevant at the time of the first test, when children are only 5 or 6 years old - an age at which a difference of a few months can play a huge role in cognitive development.
+
+```{r, fig.width=4, fig.height=4}
+
+birth <- means %>%
+  filter(type == "Birth") %>%  # Filter only for Birth category
+  select(test, mean_A, mean_B, SE_A, SE_B) %>%
+  pivot_longer(cols = c(mean_A, mean_B, SE_A, SE_B), 
+               names_to = c("Metric", "Group"), 
+               names_pattern = "(mean|SE)_(A|B)") %>%
+  pivot_wider(names_from = "Metric", values_from = "value") %>%
+  mutate(Group = ifelse(Group == "A", "January", "December"))
+
+ggplot(birth, aes(x = test, y = mean, fill = Group)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.7), width = 0.6) +
+  geom_errorbar(aes(ymin = mean - 1.96*SE, ymax = mean + 1.96*SE), 
+                position = position_dodge(width = 0.7), width = 0.2) +
+  scale_fill_manual(values = c("January" = "wheat4", "December" = "wheat")) +
+  scale_x_discrete(labels = c("d_gscore_t1" = "Global Test 1", 
+                              "d_gscore_t2" = "Global Test 2", 
+                              "d_gscore_t3" = "Global Test 3")) +
+  labs(title = "Comparison of pupils deciles by Month of Birth - global score",
+       x = NULL,  # Remove x-axis label
+       y = "Mean Score",
+       fill = "Birth Month") +
+  theme_classic()+
+  theme(
+    legend.position = "right",
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.title = element_text(size = 12)
+  )+theme(
+    plot.title = element_text(size = 8),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6),
+    legend.text = element_text(size = 6),
+        legend.title = element_text(size = 7)) 
+```
+
+#### b) Global test scores of pupils born in Jan vs december given parents' occupation
+
+We compare test scores expressed in deciles between pupils with parents having different occupations, namely 'Executives' and 'Blue collars', showcasing the 95% confidence interval for the difference between the average scores of the two categories. We observe significantly higher deciles for the children of Executives, with the difference being in fact statistically difefrent form zero at the 95% level for every test. The difference in decile increases for subsequent tests, signaling a reinforcement of the advantage of executive's children, which indicates that the mechanisms that lead to higher grades - such as better studying conditions, more help from the parents and better tools as a result of higher income - widen the gap over time.
+
+```{r}
+ kable(
+  means[means$type=='Occupation', c("test", "mean_A", "mean_B", "diff", "CI_lower", "CI_upper")] %>% 
+    mutate(across(c(mean_A, mean_B, diff, CI_lower, CI_upper), 
+                  ~ format(round(.x, 1), nsmall = 1))),  
+  caption = "Difference in global test scores between children of executives and blue collars",
+  col.names = c("Test", "Executive", "Blue Collars", "Difference", "Lower CI", "Upper CI"),
+  align = "c",
+  booktabs = TRUE,
+  longtable = TRUE
+)   %>%
+  kable_styling(full_width = F, position = "center",latex_options = c("hold_position")) %>%
+  footnote(general = "Differences are calculated as Mean A - Mean B. CI represents a 95% confidence interval.",
+           threeparttable = TRUE) %>% kable_classic_2()
+```
+
+To better analyse the trend in deciles composition as a function of age and parents occupation we plot the differences by Birth and Parents occupation for each test. Differences in deciles by birth appear to decrease over time - with scores reflecting the decreasing advantage of age as a consequence of students learning the same curriculum and catching up; on the other hanbd, the difference given by parents occupation becomes more significant over time. Economic and structural factors, such as income, available time of the parents, better housing conditions and resources, appear to have reinforcing and long lasting effects on educational outcomes.
+
+```{r, fig.width=4, fig.height=4}
+
+ggplot(means, aes(x = test, y = diff, fill = type)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.7), width = 0.6) +
+  geom_errorbar(aes(ymin = CI_lower, ymax = CI_upper), 
+                position = position_dodge(width = 0.7), width = 0.2) +
+  scale_fill_manual(values = c("Birth" = "wheat4", "Occupation" = "ivory2"),
+                  labels = c("Birth" = "Month of Birth", "Occupation" = "Parents' Occupation")) +
+   scale_x_discrete(labels = c("gscore_t1" = "Test 1", 
+                              "gscore_t2" = "Test 2", 
+                              "gscore_t3" = "Test 3")) +
+  labs(title = "Difference in mean test scores by parents occupation",
+       x = NULL,
+       y = "Difference in Mean Scores",
+       fill = "Difference by") +
+  theme_classic()+
+  theme(
+    legend.position = "right",
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.title = element_text(size = 12)
+  )+theme(
+    plot.title = element_text(size = 8),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6),
+    legend.text = element_text(size = 6),
+        legend.title = element_text(size = 7)) 
+```
+
+#### c) Why is the comparison of test scores of children born in January vs. December likely to underestimate the true effect of relative age differences on test scores? (1 point)
+
+Performing the pure comparison of test scores of children born in December and January is likely to estimate a biased effect of age.
+
+There are different factors that may be at play:
+
+-   Students attend the test in September, which influences the scores and may lead to a downward bias in the estimated effect of age: taking the test after the whole summer decreases the influence of age, especially for the first test, as students have not learned the curriculum yet and have spent the whole summer not studying.
+
+-   December-born students may be more likely to fail a grade and repeat it, leading to a biased estimate for the following tests as they perform better; such occurrence appears however unlikely in the context of very young students.
+
+-   Parents of children born in December may decide to wait a year to enroll their kids, or January-born children's parents may decide to enroll them a year earlier, leading to a selection bias in the sample of the relative grade.
+
+# Education in OECD countries
+
+```{r}
+pisa <- read_dta("pisa_2012.dta")
+```
+
+## 1 Missing values
+
+**How many missing values do the plausible values for maths, reading and science have? The result should motivate you to check missing values for another type of variable and compare. Is this comparison surprising? Comment**
+
+```{r}
+subsetscores <- pisa %>% select(c('PV1MATH', 'PV2MATH', 'PV3MATH','PV4MATH','PV5MATH', 'PV1READ', 'PV2READ','PV3READ','PV4READ','PV5READ',	PV1SCIE, PV2SCIE, PV3SCIE, PV4SCIE, PV5SCIE))
+
+
+ kable((sapply(subsetscores, function(na) {sum(is.na(na))})), caption = "Missing values of Plausible Values", col.names=c("PV", "NAs")) %>%
+  kable_classic_2(full_width = F, html_font = "Garamound") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))  %>%
+  row_spec(0, bold = T)  %>% 
+    column_spec(2, bold = T) %>% pack_rows("Mathematics",1,5)%>%
+ pack_rows("Reading",6,11) %>%
+ pack_rows("Science",11,15)
+```
+
+There are no missing values for the plausible values of Math, Reading and Science. We check the remaining variables and observe that 15 variables have missing values, with an average proportion of more than 35%, exception made for the variables related to age and grade, which - being administrative variables - have a low percentage of missing values.
+
+Plausible values are the result of an imputation process; PVs represent multiple plausible estimates of a student's performance based on the estimated distribution of each student's ability using a statistical model. Consequently, it is not surprising that we observe no missing values for PV while still having missing values in the dataset. For each student PISA imputes multiple PV - usually 5 .
+
+On the other hand, variables related to self assessment present approximately 33% of missing values; this is a consequence of the survey design, as students are required to answer randomly two thirds of the questions. As a results, the missing values will be missing completely at random and will not introduce bias.
+
+```{r}
+
+
+
+nas <- pisa %>%
+  summarise(across(everything(), ~ round(sum(is.na(.)) / nrow(pisa) * 100, 3))) %>%
+  pivot_longer(everything(), names_to = "Column", values_to = "Nas") %>%
+  mutate(Label = sapply(Column, function(col) { 
+    label <- attr(pisa[[col]], "label")
+    if (!is.null(label)) label else col  # If no label, use column name
+  })) %>%
+  filter(Nas > 0)
+
+kable(nas[, c(1,3,2)], caption = "Percentage of Missing values", col.names=c("PV","Label", "NAs"))%>%
+  kable_classic_2(full_width = F, html_font = "Garamound") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+
+```
+
+## 2 Plausible Values
+
+**Describe each step of the function, and explain in your own words the underlying idea of the estimation procedure.**
+
+Before proceeding with explaining the function used for estimation, we give a brief overview of the PISA methodology.
+
+PISA applies a two stage sampling: schools are first sampled and then students are sampled in the participating schools. As a result, two set of weights are used. To estimate student perfomarce PISA uses imputation methods - plausible values. Plausible values are used to obtain unbiased estimates of the parameters, as they are random draws from the estimated distribution of each student's ability. Multiple PV are imputed for each student; relative statistical analyses are independently performed on each of these five plausible values and results are then aggregated to obtain the final estimates of the statistics and their respective standard errors. Consequently, in the estimation of a parameter (eg. a mean) such parameter has to be computed 405 times (i.e. 5 plausible values by one student final weights and 80 replicates) to obtain the final estimate of the parameter and its standard error.
+
+**Function**:
+
+1.  For each plausible value k, the weighted mean is computed using the corresponding replication weight across the 80 replications (as we previously explained, PISA uses two stage stratified sampling). Results are stored in the matrix R.mean, where rows correspond to the replication weights, and columns correspond to the plausible values.
+
+2.  For each plausible value it computes the weighted mean using final student weights and the result is stored in a vector PV.mean.
+
+3.  It computes the average of the plausible value statistical estimates using final weight across all PV.mean (the average of all the weighted means from the previous step) and saves them in MEAN.m.
+
+4.  This step estimates within and between imputation variance.
+
+    *Within group variance*: For each plausible value (i), it calculates the weighted variance between the replications' means (R.mean\[, i\]) and the final weighted mean of the PV (PV.mean\[i\]). This variance is scaled by a factor cc = 1/20 to used to adjust for the number of replication weights. To account for the variation, the within variance is computed using bootstrapping; the 80 replication simulate 80 distribution form which standard errors are estimated and the variance is then computed.
+
+The computation of standard error for PISA follows the Fay's variant of the Balanced Repeated Replication (BRR) method. Since PISA includes 80 replications and the Fay coefficient is set to 0.5, the standard error can be estimate as follow:
+
+$$
+{\sigma}^2_{\hat{\theta}}= \frac{1}{G(1-k)^2}\sum_{i=1}^G(\hat{\theta}_{(i)}-\hat{\theta})^2
+$$
+
+$$
+\Longrightarrow{\sigma}^2_{\hat{\theta}}=  \frac{1}{80(1-0.5)^2}\sum_{i=1}^80(\hat{\theta}_{(i)}-\hat{\theta})^2
+$$
+
+$$
+= \frac{1}{20}\sum_{i=1}^{80}(\hat{\theta}_{(i)}-\hat{\theta})^2
+$$
+
+*Between groups variance:* This calculates the between-imputation variance by computing the variance between each plausible value's mean (PV.mean\[i\]) and the overall mean across every PV (MEAN.m); the variance is adjusted by dividing by the number of plausible values minus 1, similarly to a degrees of freedom correction.
+
+5.  Standard errors are computed by combining the within-imputation variance and the between-imputation variance and adjusting the between variance by a factor $$(1 + \frac{1}{\text{number of pv name - 1}})$$.
+
+6.  95% confidence intervals are calculated.
+
+7.  A data frame is returned containing the number of observations, the mean of the plausible values (MEAN.m), the standard error of the mean and the 95% confidence intervals with relative upper and lower bound.
+
+```{r}
+ 
+ 
+ # Set of Plausible values
+ pvmath <- c("PV1MATH", "PV2MATH", "PV3MATH", "PV4MATH", "PV5MATH")
+ pvread <- c("PV1READ", "PV2READ", "PV3READ", "PV4READ", "PV5READ")
+ pvscie <- c("PV1SCIE", "PV2SCIE", "PV3SCIE", "PV4SCIE", "PV5SCIE")
+ 
+subjects <- list("Math" = pvmath, "Reading" = pvread, "Science" = pvscie)
+
+countries <- list("Finland", "Viet Nam", "Norway", "France")
+
+```
+
+```{r}
+
+#function
+#>>> Parameters >>>
+
+pisa_config <- list("variables","parameters")
+pisa_config$variables$weightFinal<-"WEIGHT"
+pisa_config$variables$weightBRR <-"W_FSTR"
+pisa_config$parameters$BRRreps <- as.numeric(80) # number of replication weights
+
+#>>> Functions >>>
+
+#>>> Mean estimation for plausible values
+
+fun.pv <- function (pvnames, data, folder = getwd()) {
+ 
+    R.mean <- sapply(pvnames, function(k) sapply(1:pisa_config$parameters$BRRreps, 
+                                                 function(i) weighted.mean(data[[k]], 
+                                                                           data[[paste0(pisa_config$variables$weightBRR,i)]], na.rm = TRUE)))
+    PV.mean <- sapply(pvnames, function(x) weighted.mean(data[[x]], 
+                                                         data[[pisa_config$variables$weightFinal]], na.rm = TRUE))
+    MEAN.m <- mean(PV.mean)
+    cc = 1/20
+    
+    var.mean.w <- mean(sapply(seq_along(pvnames), function(i) cc *sum((R.mean[, i] - PV.mean[i])^2)))
+    
+    var.mean.b <- (1/(length(pvnames) - 1)) * sum(sapply(seq_along(pvnames), function(i) (PV.mean[i] - MEAN.m)^2)) 
+    
+    mean.se <- (var.mean.w + (1 + 1/length(pvnames)) * var.mean.b)^(1/2)
+    
+    LB <- MEAN.m - 1.96*mean.se
+    UB <- MEAN.m + 1.96*mean.se
+    
+    result <- data.frame(Freq = length(data[[pisa_config$variables$weightFinal]]), 
+                         Mean = mean(MEAN.m), s.e. = mean.se, LB = LB, UB = UB)
+    
+    return(round(result, 2))
+}
+```
+
+```{r}
+
+# dataframe
+final <- data.frame(Country = character(),
+                       Subject = character(),
+                       Mean = numeric(),
+                       s.e. = numeric(),
+                       stringsAsFactors = FALSE)
+
+# Apply the function
+for (country in countries) {
+  for (subjects_name in names(subjects)) {
+    
+    
+    pvnames <- subjects[[subjects_name]]
+    
+    # Apply the fun function to the data for the given country and variable
+    result <- fun.pv(pvnames, pisa[(pisa$CNT == country), ], folder = getwd())
+    
+    # Add the result (mean and s.e.) to the data frame
+    temp_df <- data.frame(Country = country,
+                          Subject = subjects_name,
+                          Mean = result$Mean,
+                          s.e. = result$s.e.,
+                          stringsAsFactors = FALSE)
+    
+    # Bind the result to the final data frame
+    final <- rbind(final, temp_df)
+  }
+}
+
+
+```
+
+```{r}
+##Kable
+final %>% pivot_longer(cols = c("Mean", "s.e."), names_to = "Metric", values_to = "Value") %>%
+mutate(
+Value = ifelse(Metric == "s.e.", paste0("(", round(Value, 2), ")"), round(Value, 2)), 
+Metric = ifelse(Metric == "Mean", "Estimate", "SE") # Rename metric
+) %>%
+pivot_wider(names_from = "Country", values_from = "Value") %>%
+mutate("Subject" = ifelse(Metric == "SE", "", Subject)) %>% 
+select(-Metric) %>% kable() %>%
+  kable_classic_2(full_width = F, html_font = "Garamound") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))  %>%
+  row_spec(0, bold = T) 
+```
+
+Taking averages at face value, ranking countries by highest score results in the same order for each subject: Finland has the highest values, followed by Viet Nam, France and finally Norway. Such ranking, however, hardly reflects the level of education of the overall national population. It is in fact highly likely that the level of self selection into education plays a major role, with well performing students being more likely to be enrolled in education.
+
+To draw a representative picture of the educational situation in each countries it may be important to use complementary measures:
+
+-   the distribution of educational attainment gives us an estimator of the equality of the overall setting and process. We may be more interested in countries with more equally distributed results over higher averages, since a huge gap in performance between students may reveal obstacles to educations of flaws in the teaching system and structure.
+
+-   observing improvement over the years in average scores may be more meaningful than observing the year-level static picture
+
+-   following scores across the school years may highlight cross-country differences in the level of education at different educational stages
+
+## 3 Gender
+
+**Using the same methodology as in question 2, compute the average scores in reading, mathematics, and science for girls and boys separately, for each country.**
+
+By computing gender specific averages across subjects we can observe an overall similar trend. Girls significantly and largely outperform boys in reading in every country; the trend for math is less clear, as boys perform better in Vietnam and France, while in Norway and Finland the difference is not significant at the 95% level; finally, girls significantly outperform boys in science in Finland, while the other countries do not experience significant differences in science performance between boys and girls.
+
+The country level ranking by highest score we analysed before holds when computing averages by gender. Finland has the highest values, followed by Viet Nam, France and Norway for every subject (apart from the reading score for girls). In general, while not every cross country difference is statistically significant, we can observe Finland and Viet Nam significantly outperforming France and Norway - with the only exception of girls reading.
+
+```{r}
+##Girls
+# dataframe
+final_girls <- data.frame(Country = character(),
+                       Subject = character(),
+                       Mean = numeric(),
+                       s.e. = numeric(),
+                       stringsAsFactors = FALSE)
+
+# Apply the function
+for (country in countries) {
+  for (subjects_name in names(subjects)) {
+  
+    
+    pvnames <- subjects[[subjects_name]]
+    
+   
+    result_girls <- fun.pv(pvnames, pisa[(pisa$CNT == country & pisa$GENDER==0), ], folder = getwd())
+    
+   
+    temp_df <- data.frame(Country = country,
+                          Subject = subjects_name,
+                          Mean = result_girls$Mean,
+                          s.e. = result_girls$s.e.,
+                          stringsAsFactors = FALSE)
+    
+  
+    final_girls <- rbind(final_girls, temp_df)
+  }
+}
+
+final_girls <- final_girls %>%  mutate(Gender= "Girls")
+
+## Boys
+
+final_boys <- data.frame(Country = character(),
+                       Subject = character(),
+                       Mean = numeric(),
+                       s.e. = numeric(),
+                       stringsAsFactors = FALSE)
+
+# Apply the function
+for (country in countries) {
+  for (subjects_name in names(subjects)) {
+
+        pvnames <- subjects[[subjects_name]]
+    
+    # Apply the fun function to the data for the given country and variable
+    result_boys <- fun.pv(pvnames, pisa[(pisa$CNT == country & pisa$GENDER==1), ], folder = getwd())
+    
+    
+    
+    temp_df_boys <- data.frame(Country = country,
+                          Subject = subjects_name,
+                          Mean = result_boys$Mean,
+                          s.e. = result_boys$s.e.,
+                          stringsAsFactors = FALSE)
+    
+    # Bind the result to the final data frame
+    final_boys <- rbind(final_boys, temp_df_boys)
+  }
+}
+
+final_boys <- final_boys %>%  mutate(Gender= "Boys")
+
+## Combine
+final_df <- rbind(final_boys, final_girls)
+
+final_df <- final_df %>% pivot_longer(cols = c("Mean", "s.e."), names_to = "Metric", values_to = "Value") %>%
+mutate(
+Value = ifelse(Metric == "s.e.", paste0("(", round(Value, 2), ")"), round(Value, 2)), 
+Metric = ifelse(Metric == "Mean", "Estimate", "SE")
+) %>%
+pivot_wider(names_from = "Country", values_from = Value) %>%
+mutate("Subject" = ifelse(Metric == "SE", "", Subject)) 
+
+final_df %>% 
+select(-Metric, -Gender)%>% kable() %>%
+  kable_classic_2(full_width = F, html_font = "Garamound") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))  %>%
+  row_spec(0, bold = T) %>% pack_rows("Boys",1,6)%>%
+ pack_rows("Girls",7,12)
+
+```
+
+```{r}
+#Individual Mean values
+## Girls
+## math
+Finland_girls <- fun.pv(pvmath, pisa[(pisa$CNT=="Finland"& pisa$GENDER==0),], folder = getwd())
+France_girls <- fun.pv(pvmath, pisa[(pisa$CNT=="France"& pisa$GENDER==0),], folder = getwd())
+Norway_girls <- fun.pv(pvmath, pisa[(pisa$CNT=="Norway"& pisa$GENDER==0),], folder = getwd())
+Vietnam_girls <- fun.pv(pvmath, pisa[(pisa$CNT=="Viet Nam"& pisa$GENDER==0),], folder = getwd())
+
+
+
+##read
+
+Finland_r_girls <- fun.pv(pvread, pisa[(pisa$CNT=="Finland"& pisa$GENDER==0),], folder = getwd())
+France_r_girls <- fun.pv(pvread, pisa[(pisa$CNT=="France"& pisa$GENDER==0),], folder = getwd())
+Norway_r_girls <- fun.pv(pvread, pisa[(pisa$CNT=="Norway"& pisa$GENDER==0),], folder = getwd())
+Vietnam_r_girls <- fun.pv(pvread, pisa[(pisa$CNT=="Viet Nam"& pisa$GENDER==0),], folder = getwd())
+
+
+
+##science
+
+Finland_s_girls <- fun.pv(pvscie, pisa[(pisa$CNT=="Finland" & pisa$GENDER==0),], folder = getwd())
+France_s_girls <- fun.pv(pvscie, pisa[(pisa$CNT=="France" & pisa$GENDER==0),], folder = getwd())
+Norway_s_girls <- fun.pv(pvscie, pisa[(pisa$CNT=="Norway" & pisa$GENDER==0),], folder = getwd())
+Vietnam_s_girls <- fun.pv(pvscie, pisa[(pisa$CNT=="Viet Nam" & pisa$GENDER==0),], folder = getwd())
+
+
+
+```
+
+```{r}
+## boys
+## math
+Finland <- fun.pv(pvmath, pisa[(pisa$CNT=="Finland"& pisa$GENDER==1),], folder = getwd())
+France <- fun.pv(pvmath, pisa[(pisa$CNT=="France"& pisa$GENDER==1),], folder = getwd())
+Norway <- fun.pv(pvmath, pisa[(pisa$CNT=="Norway"& pisa$GENDER==1),], folder = getwd())
+Vietnam <- fun.pv(pvmath, pisa[(pisa$CNT=="Viet Nam"& pisa$GENDER==1),], folder = getwd())
+
+
+##read
+
+Finland_r <- fun.pv(pvread, pisa[(pisa$CNT=="Finland"& pisa$GENDER==1),], folder = getwd())
+France_r <- fun.pv(pvread, pisa[(pisa$CNT=="France"& pisa$GENDER==1),], folder = getwd())
+Norway_r <- fun.pv(pvread, pisa[(pisa$CNT=="Norway"& pisa$GENDER==1),], folder = getwd())
+Vietnam_r <- fun.pv(pvread, pisa[(pisa$CNT=="Viet Nam"& pisa$GENDER==1),], folder = getwd())
+
+
+##science
+
+Finland_s <- fun.pv(pvscie, pisa[(pisa$CNT=="Finland" & pisa$GENDER==1),], folder = getwd())
+France_s <- fun.pv(pvscie, pisa[(pisa$CNT=="France" & pisa$GENDER==1),], folder = getwd())
+Norway_s <- fun.pv(pvscie, pisa[(pisa$CNT=="Norway" & pisa$GENDER==1),], folder = getwd())
+Vietnam_s <- fun.pv(pvscie, pisa[(pisa$CNT=="Viet Nam" & pisa$GENDER==1),], folder = getwd())
+
+
+```
+
+## 4 Difference in Gender
+
+**Are differences between girls and boys the same across countries? Find a meaningful, clear and complete way to represent your results, and comment.**
+
+We compute the mean across all subjects of boys and girls and compare at the country level. Observing the overall mean for boys and girls we can conclude that, on average, girls outperform boys in every country; we cannot conclude, however, on the statistical significance of the results.
+
+```{r, fig.width=4, fig.height=3}
+
+
+meanboys <- data.frame(
+  Finland = mean(c(Finland_s$Mean, Finland_r$Mean, Finland$Mean)),
+  France = mean(c(France$Mean, France_r$Mean, France_s$Mean)),
+  Vietnam = mean(c(Vietnam$Mean, Vietnam_r$Mean, Vietnam_s$Mean)),
+  Norway = mean(c(Norway$Mean, Norway_r$Mean, Norway_s$Mean))
+, row.names = 'Boys')
+
+meangirls <- data.frame(
+  Finland = mean(c(Finland_s_girls$Mean, Finland_r_girls$Mean, Finland_girls$Mean)),
+  France = mean(c(France_girls$Mean, France_r_girls$Mean, France_s_girls$Mean)),
+  Vietnam = mean(c(Vietnam_girls$Mean, Vietnam_r_girls$Mean, Vietnam_s_girls$Mean)),
+  Norway = mean(c(Norway_girls$Mean, Norway_r_girls$Mean, Norway_s_girls$Mean))
+, row.names = 'Girls')
+
+meangirls <- meangirls %>%  pivot_longer(cols= everything(), names_to = 'Country', values_to = 'Girls')
+meanboys <- meanboys %>%  pivot_longer(cols= everything(), names_to = 'Country', values_to = 'Boys')
+
+gender_comp <- left_join(meanboys, meangirls)
+
+gender_comp_long <- gender_comp %>%
+  pivot_longer(cols = c("Boys", "Girls"), 
+               names_to = "Gender", 
+               values_to = "Mean")
+
+# Create the histogram
+ggplot(gender_comp_long, aes(x = Country, y = Mean, fill = Gender, group = Gender)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Average Scores for Boys and Girls by Country",
+       x = "Country", y = "Average score") +
+  theme_minimal() +
+  scale_fill_manual(values = c("beige", "grey")) +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.title = element_text(size = 12)
+  )+theme(
+    plot.title = element_text(size = 8),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6),
+    legend.text = element_text(size = 6),
+        legend.title = element_text(size = 7)) 
+
+```
+
+#### Difference by Subject
+
+Computing country and subject level averages by gender we observe that the domain in which girls most significantly outperform boys is reading. The differences in science and math appear less prominent, with boys obtaining slightly better results than girls in math.
+
+Such trend is the beginning of what in later years becomes a an established tendency: girls are more likely to select in humanistic subjects, while boys in STEM courses. While this could potentially be only a matter of students choosing the subjects they are more skilled in, studies demonstrate that being assigned to a biased math teacher (ie. who implicitly associate math with boys) leads to girls lagging behind in math and has negative effects on self confidence and track choice (Carlana, 2019). [^homework-6---sarah-bertoni-1]
+
+[^homework-6---sarah-bertoni-1]: Michela Carlana, Implicit Stereotypes: Evidence from Teachers' Gender Bias. *The Quarterly Journal of Economics*, Volume 134, Issue 3, August 2019, Pages 1163--1224,
+
+```{r, fig.width=5.5, fig.height=4}
+#Filter the data
+data<-data.frame(final_df) %>%  filter(Metric=='Estimate') %>% select(-Metric)
+data_long <- data %>%
+  pivot_longer(cols = starts_with("Finland"):starts_with("France"), 
+               names_to = "Country", 
+               values_to = "Estimate")
+data_long$Estimate <- as.numeric(data_long$Estimate)
+
+
+#Plot the data by gender, subject and country
+
+ggplot(data_long, aes(x = Subject, y = Estimate, color = Gender, shape = Gender)) +
+  geom_segment(aes(x = Subject, xend = Subject, y = 0, yend = Estimate)) +
+  geom_point(size = 3, alpha = 0.7) +
+  facet_wrap(~ Country) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  ) +
+  labs(title = "PISA values by Subject, Gender, and Country", x = "Subject", y = "PV")+
+  scale_color_manual(values = c("Boys" = "wheat4", "Girls" = "wheat2")) +theme(
+    plot.title = element_text(size = 8),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6),
+    legend.text = element_text(size = 6),
+        legend.title = element_text(size = 7)) 
+```
+
+## 5 Mean estimation for standard variables
+
+**Have a look at the indices of self-assessment in mathematics. Compare boys and girls along these variables and across countries. Describe each step of the function fun, and explain in your own words the underlying idea of the estimation procedure.**
+
+For this part we decided to focus on the self reported variables of Self-assessment", "Anxiety" and "Interest" related to math.
+
+**Function**
+
+1.  It calculates the weighted mean for the specified variable across the 80 replication using replications weights.
+
+2.  We calculate the weighted mean for the variable using the final weight.
+
+3.  Standard errors are computed by taking the square root of the sum of squared differences between each of the replication means and the total mean previously computed; the sum of squared differences is multiplied by 0.05, given by the fact that there are 80 replicates and the Fay coefficient is set to 0.5.
+
+4.  Finally, the 95% confidence interval is computed, and the function returns the relative lower and upper bound.
+
+The underlying idea of the estimation procedure is to provide an unbiased estimation of the variables by taking into account sampling weights and the variation within the sample. This approach doesn't use imputed plausible values but computes averages and standard errors directly with the original variables and adjusts for sampling error by using replicates; consequently, it only needs to account for sampling variance.
+
+**Self assessment values across genders**
+
+The results highlight a worrying picture: girls exhibit higher level of anxiety and lower interest and self assessment in math across every analised country. Such results become particurarly relevant when considering that boys outperform girls in math only in France, and not by a large margin.
+
+These findings support our previous remarks about biases and gender attitude towards math: girls are more likely to have low motivation and confidence in their math skills compared to boys, even when their scores are not - on average - lower than boys. This results in the underepresentation of girls in the science, technology, engineering and mathematics fields, both in academia and in the job market.
+
+```{r}
+self_ass <- list("Self-assessment" = "SCMAT",
+"Anxiety" = "ANXMAT",
+"Interest" = "INTMAT")
+
+countries <- list("Finland", "Viet Nam", "Norway", "France")
+```
+
+```{r}
+fun <- function(variable, data) {
+  
+  # Calculate BRR replication weights
+  meanrp <- sapply(1:pisa_config$parameters$BRRreps, function(i) 
+    weighted.mean(as.numeric(data[[variable]]), 
+                  data[[paste(pisa_config$variables$weightBRR, i, sep = "")]], 
+                  na.rm = TRUE)
+  )
+  
+  # Calculate total weighted mean
+  meantot <- weighted.mean(as.numeric(data[[variable]]), 
+                           data[[pisa_config$variables$weightFinal]], na.rm = TRUE)
+  
+  # Compute the standard error
+  meanse <- (0.05 * sum((meanrp - meantot)^2))^(1/2)
+  
+  # Compute confidence interval bounds
+  LB <- meantot - 1.96 * meanse
+  UB <- meantot + 1.96 * meanse
+  
+  # Return the results
+  result <- data.frame( 
+                       Mean = meantot, 
+                       s.e. = meanse, 
+                       LB = LB, 
+                       UB = UB)
+  
+  return(round(result, 2))
+} 
+
+```
+
+```{r}
+##Girls
+
+# Create an empty data frame to store the results
+final_girls <- data.frame(Country = character(),
+                       Variable = character(),
+                       Mean = numeric(),
+                       s.e. = numeric(),
+                       stringsAsFactors = FALSE)
+
+# Apply the 'fun' function and store the results in the data frame
+for (country in countries) {
+  for (variable_name in names(self_ass)) {
+    # Get the variable code from the self_ass list
+    variable_code <- self_ass[[variable_name]]
+    
+    # Apply the fun function to the data for the given country and variable
+    result <- fun(variable_code, pisa[(pisa$CNT == country & pisa$GENDER==0), ])
+    
+    # Add the result (mean and s.e.) to the data frame
+    temp_df <- data.frame(Country = country,
+                          Variable = variable_name,
+                          Mean = result$Mean,
+                          s.e. = result$s.e.,
+                          stringsAsFactors = FALSE)
+    
+    # Bind the result to the final data frame
+    final_girls <- rbind(final_girls, temp_df)
+  }
+}
+final_girls <- final_girls %>% mutate(Gender="Girls")
+
+
+```
+
+```{r}
+##Boys
+
+# Create an empty data frame to store the results
+final_boys <- data.frame(Country = character(),
+                       Variable = character(),
+                       Mean = numeric(),
+                       s.e. = numeric(),
+                       stringsAsFactors = FALSE)
+
+# Apply the 'fun' function and store the results in the data frame
+for (country in countries) {
+  for (variable_name in names(self_ass)) {
+    # Get the variable code from the self_ass list
+    variable_code <- self_ass[[variable_name]]
+    
+    # Apply the fun function to the data for the given country and variable
+    result <- fun(variable_code, pisa[(pisa$CNT == country & pisa$GENDER==1), ])
+    
+    # Add the result (mean and s.e.) to the data frame
+    temp_df_boys <- data.frame(Country = country,
+                          Variable = variable_name,
+                          Mean = result$Mean,
+                          s.e. = result$s.e.,
+                          stringsAsFactors = FALSE)
+    
+    # Bind the result to the final data frame
+    final_boys <- rbind(final_boys, temp_df_boys)
+  }
+}
+
+final_boys <- final_boys %>% mutate(Gender="Boys")
+
+```
+
+```{r}
+
+## Bind dataframes
+final_df <- rbind(final_boys, final_girls)
+
+#Kable 
+
+data <- final_df %>% pivot_longer(cols = c("Mean", "s.e."), names_to = "Metric", values_to = "Value") %>%
+mutate(
+Value = ifelse(Metric == "s.e.", paste0("(", round(Value, 2), ")"), round(Value, 2)), 
+Metric = ifelse(Metric == "Mean", "Estimate", "SE") 
+) %>%
+  
+pivot_wider(names_from = "Country", values_from = "Value") %>%
+  
+mutate("Variable" = ifelse(Metric == "SE", "", Variable)) 
+
+
+data %>% 
+  
+select(-Metric, -Gender) %>% rename("Math Assessment"= Variable)%>% kable() %>%
+  
+  kable_classic_2(full_width = F, html_font = "Garamound") %>%
+  
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))  %>%
+  
+  row_spec(0, bold = T) %>% pack_rows("Boys",1,6)%>%
+  
+ pack_rows("Girls",7,12)
+```
+
+Girls report lower levels of self assessment and interest and higher level of anxiety related to math in every country. We observe, however, differences in the intensity of such phenomenon. Vietnam is the country with the highest level of reported interest in math, for both boys and girls. While girls report lower values than boys, it is still worth noticing that the higher average is an encouraging sign, and may be related to quality of education or a different teaching method; once again, however, it is important to consider the level of self selecting into education that a country may experience and the relative bias that arise from measures of educational levels. Contextually, Vietnam experience higher levels of anxiety compared to the other countries - apart from the case of French girls -, which may be an indicator of a valid but strict system. As a matter of fact, the self assessment is very low for girls, and the lowest across countries for boys, while the previously estimated scores rank Vietnam as the second highest perfoming country in math.
+
+France has huge disparities between boys and girls, in particular regarding anxiety and self assessment, which may indicate deeply rooted problems of bias in the educational system.
+
+Finland exhibits the lowest values of anxiety, but we still observe a large difference between boys and girls.
+
+It is interesting to observe how a higher level of interest does not appear to be correlated with self assessment for boys, but such trend may be more fitted to girls, exception made for Vietnam, where the level of self assessment is very low depsite the high interest.
+
+```{r}
+data<-data.frame(data) %>%  filter(Metric=='Estimate') %>% select(-Metric)
+data_long <- data %>%
+  pivot_longer(cols = starts_with("Finland"):starts_with("France"), 
+               names_to = "Country", 
+               values_to = "Estimate")
+data_long$Estimate <- as.numeric(data_long$Estimate)
+
+
+#Plot the data by gender, subject and country
+
+ggplot(data_long, aes(x = Variable, y = Estimate, color = Gender, shape = Gender)) +
+  geom_segment(aes(x = Variable, xend = Variable, y = 0, yend = Estimate)) +
+  geom_point(size = 3, alpha = 0.7) +
+  facet_wrap(~ Country) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  ) +
+  labs(title = "PISA self - assessment by Subject, Gender, and Country", x = "Variable", y = "PV")+
+  scale_color_manual(values = c("Boys" = "wheat4", "Girls" = "wheat2")) +theme(
+    plot.title = element_text(size = 8),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6),
+    legend.text = element_text(size = 6),
+        legend.title = element_text(size = 7)) 
+```
+
+\newpage
+
+### Complete Code
+
+```{r ref.label=all_labels(), echo=T, eval=FALSE}
+
+```

@@ -1,0 +1,1030 @@
+---
+title: "Measurement II"
+subtitle: "Sarah Bertoni"
+autor: "Sarah Bertoni"
+date:  15 October 2024
+format:
+  pdf: 
+    code-overflow: wrap
+    fontsize: 10pt
+    mainfont: Garamond
+    sansfont: Garamond
+editor: visual
+output: 
+  html_document:
+    theme: cosmo
+    latex_engine: pdflatex
+    huxreg_options: "tabular={l|ccc}, tablewidth=0.05\\textwidth, tablefont=\\footnotesize"
+    fig_caption: true
+execute:
+  echo: false
+  warning: false
+---
+
+# Child Mortality in Cote d'Ivoire
+
+```{r}
+## Libraries
+library(haven)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(tidyr)
+library(Amelia)
+library(sandwich)
+library(lmtest)
+library(miceadds)
+library(huxtable)
+library(matrixStats)
+library(float) 
+library(stargazer)
+library(readxl)
+library(gridExtra)
+library(huxtable)
+library(broom)
+
+```
+
+## Analysing the data set
+
+```{r}
+mortality <- read_dta("civ88_mort.dta")
+nutri <- read_dta("civ88-08_nutri.dta")
+kable(data.frame(
+  Variabile = c("Mortality", "Nutri"),
+  NAs = c(sum(is.na(mortality)), sum(is.na(nutri)))
+), caption = "Missing values for dataframes") %>%  
+  kable_paper("hover", full_width = F, html_font = "Cambria") %>% kable_styling(bootstrap_options = c("striped", "hover"),  position = "float_left")
+# not random missing values, selection bias
+```
+
+The high number of missing values in the data set regarding the physical characteristics of children for a nationally representative sample of households in Cote d'Ivoire may hide a problem of biased sample, which would arise in the case of missing values not being independent from the other variables.
+
+```{r}
+kable(sapply(nutri, function(na) {sum(is.na(na))}), caption = "Number of missing values per variable", col.names = c("Variable","NAs")) %>%
+  kable_classic(full_width = F, html_font = "Garamound", font_size=8) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), ,  position = "float_left")
+
+```
+
+To account for such possibility, we run a regression to analyse the dependence of the presence of missing values and level on per capita consumption.
+
+```{r}
+missingvalues<- sapply(nutri, function(x){
+if (is.character(x)) {
+sum(is.na(x) | x == "")
+} else {
+sum(is.na(x))
+}
+})
+
+
+missing_df<-as.data.frame(missingvalues)
+
+dummies<-nutri%>%
+  select(height, weightkg)%>%
+  mutate(dummyheight=ifelse(is.na(height),1,0),
+         dummyweightkg=ifelse(is.na(weightkg),1,0))
+
+regindep<-huxreg(lm(nutri$conspc88~dummies$dummyheight), lm(nutri$conspc88~dummies$dummyweightkg), 
+       statistics=character(0), 
+       coefs=c(
+         "Intercept"="(Intercept)",
+         "Presence of missing value in height"="dummies$dummyheight", 
+         "Presence of missing value in weight"="dummies$dummyweightkg"))
+
+set_caption(regindep,"Regression of expenditures per capita on the
+            presence of missing values in height and weight")
+```
+
+We can observe that the coefficients related to the effect of missing values in height and weight on consumption are statistically significant, which indicates that the number of missing values is not independent from the level of consumption, possibly suggesting a biased sample.
+
+To correct for such possible bias we could construct two multiple regression models to estimate the predicted values of height and weight through all the other variables in the data set; consequently, we would substitute the missing values of height and weight with the predicted values obtained from our regression models. However, for the sake of this exercise and to avoid introducing an additional bias, we will not fill in the missing values, since a simple linear regression would not reflect the uncertainty of the imputation; to obtained a less biased estimate I would deem more efficient to impute values through multiple imputation.
+
+## 1. Sampling
+
+a\) The data set from now on referred to as "mortality" was obtained through household survey for Cote d'Ivoire; to ensure that the survey did not present issues of over or under representation, weights, namely `pweight` , were attributed to each surveyed household. In each surveyed household, one woman between 15 and 49 years old was randomly selected and interviewed, meaning she had a probability of being selected equal to $\frac{1}{n\_wom}$ , where $n\_wom$ is equal to the number of women in the household. Consequently, in order to estimate statistics on the population of women in the country we need to attribute an higher weight to women sampled from bigger household; we can do that by creating a new weight, called `weight,` obtained by multiplying the household weight by the number of women in the household.
+
+```{r}
+mortality <- mortality %>% mutate(weight = (pweight*n_wom))
+
+```
+
+## 2. Measurement of under 5 mortality
+
+**a) Measuring mortality under 5 years of age.**
+
+The two different methods of computing mortality rates for children aged 0-4 have different drawbacks.
+
+By evaluation the ratio of children born 0 to 4 years ago on the number of deaths we are excluding from our estimation the children who may still die while in the age range 0-4 but after the survey was executed; by estimating the mortality rate through this method we are artificially restricting the sample of dead children, lowering the numerator of the ratio and de facto underestimating the mortality rate.
+
+The second method does not suffer from such issue, but we may encounter other types of difficulties and errors during the process of data collection. The data relative to children born 5 to 9 years ago may in fact be incorrect and the reported number of deaths may suffer from some type of misreporting. It is also important to consider the purpose of the estimation: while the first method may underestimate the mortality rate, the second method may be not entirely precise or not reflect the current situation of the country; the preferred method is therefore at least partially dependent on the reason behind the estimation.
+
+All things considered, the second method should lead to a better estimation of the mortality rate, not suffering from underestimation.
+
+**b) First method**
+
+In order to calculate the mortality rate under the age of 5 years we can subset the population of children born 0 to 4 years ago and divide the number of deaths by the number of children.
+
+```{r results="asis"}
+
+## Compute the average
+# Boys
+
+rateb1<- (lm(data = mortality, formula = dboys_l5/boys_l5 ~ 1, weights = weight))
+# Girls
+rateg1<- (lm(data = mortality, formula = dgirls_l5/girls_l5 ~ 1, weights = weight))
+
+
+
+
+```
+
+**b) Second Method**
+
+We can alternatively take the population of children born 5 to 9 years ago and divide the number of deaths between 0 and 4 years of age (i.e. before reaching age 5) by the number of children.
+
+```{r}
+## Numer of children born 5 to 9 years ago
+mortality <- mortality %>%  mutate(boys_5_9= boys - boys_l5)
+mortality <- mortality %>% mutate(girls_5_9 = girls - girls_l5)
+
+## Number of children dead before age of five born between 0 and 5 years ago
+mortality <- mortality <- mortality %>%  mutate(dboyl9 = dboys_u5 - dboys_l5 )
+mortality <- mortality <- mortality %>%  mutate(dgirlsl9 = dgirls_u5 - dgirls_l5 )
+
+## Weighted average
+# Boys = 0.120314
+rateb2<- (lm(data = mortality, formula = dboyl9/boys_5_9 ~ 1, weights = pweight, na.rm=T))
+# Girls = 0.116958
+rateg2<-(lm(data = mortality, formula = dgirlsl9/girls_5_9 ~ 1, weights = weight, na.rm=T))
+
+
+
+
+models_rates <- huxreg("Boys M1" = rateb1,
+                  "Boys M2" = rateb2, 
+                  "Girls M1" = rateg1, 
+                  "Girls M2" = rateg2,
+                  error_format = "({std.error})",
+                  error_pos = "below",
+                  statistics = c(N = "nobs"),
+                  note = "{stars}",
+                  align = "center") %>%
+  set_caption("Average child deaths in Ivory Coast")
+set_latex_float(models_rates, value = "H")
+
+
+```
+
+Computing the mortality rate with the two different methods yields the expected results: the estimates deriving from the first method are lower due to the underestimation of the mortality rate. The two estimations related to the two methods do not, however, differ by a strong margin. Mortality rate are consistently higher for boys than for girls for both methods, consistent with what we would expect from the literature on the matter[^1].
+
+[^1]: https://childmortality.org/
+
+\newpage
+
+# 2. Health status, nutritional status and wealth in Cote d'Ivoire
+
+```{r}
+civ88_08_nutri <- read_dta("civ88-08_nutri.dta")
+nutri <- civ88_08_nutri
+
+```
+
+## 1. Unit error
+
+In 2008, the weight could be measured in either kilograms or hectograms. However, the unit was not systematically reported. It was therefore assumed that all the weights were reported in kilograms.
+
+**a) Sample mean**
+
+To obtain an estimate for an unbiased mean we would have to compute the weighted average of the sample; accounting for the weights allows us to obtain a sample representative of the population and avoid to over or underestimate the value of the mean. The hectogram issue poses some issues, since it skews the distribution of the weight . To correct for such an issue, we would have to know the maximum real weight measured in kilograms for each age group, in order to transform the values over such threshold from hectograms to kilograms and obtain the unbiased mean, while still accounting for weights in order to maintain a representative sample.
+
+$\bar x = \frac{\sum w_ix_\text{i hect}*0.01 + \sum w_ix_\text{i kg}} {\sum w_i}$
+
+We could also estimate the mean by knowing the probability equal to $p$ of a measure being measured in hectograms.
+
+\$\\bar x = \\frac{p}{n}\\sum x_i + \\frac{1-p}{n}\\sum x_i \*0.01\$
+
+**Weight distribution before correction**
+
+The 2008 weight distribution is highly right skewed, showcasing the effect of the hectogram mistake; the 1993 and 1988 weight distribution, on the other hand, exhibit a normal distribution, confirming the presence of measurement errors only for the year 2008.
+
+```{r, fig.width=5, fig.height=3}
+#Weight distribution before correction
+weight2008<- nutri %>% filter(year==2008) %>% select(weightkg)
+ plot2008bf <- ggplot(weight2008, aes(weightkg)) + geom_histogram(col="black", fill="lightblue") + theme_classic() +
+  labs(
+    title = "Weight distribution 2008",
+    subtitle = "Pre unit correction",
+    caption = "Dataset civ88-08 nutri.dta.",
+  ) + xlab("weight in kg") +theme(
+    plot.title = element_text(size = 8),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6)) 
+ 
+ weight1993<- nutri %>% filter(year==1993) %>% select(weightkg)
+ plot1993bf<- ggplot(weight1993, aes(weightkg)) + geom_histogram(col="black", fill="lightgreen") + theme_classic() +
+  labs(
+    title = "Weight distribution 1993",
+    subtitle = "Pre unit correction",
+    caption = "Dataset civ88-08 nutri.dta.",
+  ) + xlab("weight in kg") +theme(
+    plot.title = element_text(size = 8),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6))
+ 
+weight1988<- nutri %>% filter(year==1988) %>% select(weightkg)
+plot1988bf<- ggplot(weight1988, aes(weightkg)) + geom_histogram(col="black", fill="lightpink") + theme_classic() +
+  labs(
+    title = "Weight distribution 1988",
+    subtitle = "Pre unit correction",
+    caption = "Dataset civ88-08 nutri.dta.",
+  ) + xlab("weight in kg") +theme(
+    plot.title = element_text(size = 8),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6))
+ 
+grid.arrange(plot1988bf, plot1993bf, plot2008bf, nrow = 1)
+```
+
+**Density weight distribution before correction**
+
+```{r, fig.width=5, fig.height=4}
+#Density weight distribution before correction
+ ggplot(weight2008, aes(weightkg)) + geom_histogram(aes(y=after_stat(density)),      
+                   binwidth=1,
+                   colour="black", fill="white") +
+    geom_density(alpha=.2, fill="lightblue")+
+    geom_vline(aes(xintercept=mean(weightkg, na.rm=T)),   
+               color="red", linetype="dashed", size=1) +
+  labs(
+    title = "Weight distribution 2008",
+    subtitle = "Density Histogram 
+Overlay with transparent density plot
+Pre unit correction",
+    caption = "Dataset civ88-08 nutri.dta.",
+  ) + xlab("weight in kg") + theme_classic() +theme(
+    plot.title = element_text(size = 8),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6))
+ 
+
+ 
+```
+
+By plotting the distribution of the weight across the years we observe a range of values which appears abnormal if considering that the highest observed age in the data set is of 5 years; the presence of abnormal values could be attributed to the unit mistake, with some weight mistakenly reported in hectograms. We define a threshold of 25 kilograms, based on the average weight for 5 years old, above which we assume values to be in hectograms and therefore convert them in kilograms by multiplying them by $0.1$.
+
+After such correction the weights appear to be in line with the age range 0-5 years, but when comparing the weights to the relative ages we still observe some anomalies. To correct for such issue we define thresholds based on age groups and report values above the thresholds to kilos.
+
+Our defined thresholds per age groups were defined based on the values from the World Health Organisation website which showcases the standard weights for age group[^2]: for each age group we set as upper bound the highest value between the 97th percentile for girls and boys.
+
+[^2]: Weight-for-age. (n.d.). https://www.who.int/tools/child-growth-standards/standards/weight-for-age
+
+Once having operated such correction we get rid of every values lower than 1 kilogram and above 30 kilograms, since they cannot realistically be related to a child's weight.
+
+```{r}
+#weight threshold for age group
+maxage <- nutri %>% max(nutri$age, na.rm=T) ##= 60 months = 5 years
+## weights higher than 30kg -> switch to kg
+nutri <- nutri %>% mutate(weightkg= ifelse(weightkg > 25, weightkg*0.1, weightkg*1))
+
+
+ages<-c("0 to 1 y.o.", "1 to 2 y.o.", "2 to 3 y.o.", "3 to 5 y.o.")
+threshw<-c("up to 12 kg", "up to 15 kg", "up to 18 kg", "up to 24.5 kg")
+thresholds<-data.frame("Age" = ages, "Normal weights" = threshw)
+kable(thresholds, caption="Expected weights of children from birth to 5 years
+      old in the world" , col.names = c("Age Range", "Weight range")) %>%  
+  kable_paper("hover", full_width = F, html_font = "Cambria") %>% kable_styling(bootstrap_options = c("striped", "hover"),  position = "float_left")
+
+
+
+```
+
+```{r}
+#weight correction
+nutri <- nutri %>%
+  mutate(weightkg = case_when(
+    year == "2008" & age <= 12 & weightkg > 12 ~ weightkg * 0.1,
+    year == "2008" & age <= 12 ~ weightkg,
+    year == "2008" & age > 12 & age <= 24 & weightkg > 15 ~ weightkg * 0.1,
+    year == "2008" & age > 12 & age <= 24 ~ weightkg,
+    year == "2008" & age > 24 & age <= 36 & weightkg > 18 ~ weightkg * 0.1,
+    year == "2008" & age > 24 & age <= 36 ~ weightkg,
+    year == "2008" & age > 36 & weightkg > 24.5 ~ weightkg * 0.1,
+    year == "2008" & age > 36 ~ weightkg,
+    TRUE ~ weightkg))
+ 
+## weights lower than 1 kg and higher than 30 kg return NA
+
+nutri <- nutri %>% mutate(weightkg= ifelse(weightkg > 30 | weightkg<1, NA, weightkg*1))
+
+```
+
+**Weight distribution after correction**
+
+```{r, fig.width=7, fig.height=3}
+#Weight distribution after correction
+
+weight2008<- nutri %>% filter(year==2008) %>% select(weightkg)
+ plot2008after<- ggplot(weight2008, aes(weightkg)) + geom_histogram(col="black", fill="lightblue") + theme_classic() +
+  labs(
+    title = "Weight distribution 2008",
+    subtitle = "Post unit correction",
+    caption = "Dataset civ88-08 nutri.dta.",
+  ) + xlab("weight in kg") +theme(
+    plot.title = element_text(size = 8),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6))
+ 
+ weight1993<- nutri %>% filter(year==1993) %>% select(weightkg)
+ plot1993after<- ggplot(weight1993, aes(weightkg)) + geom_histogram(col="black", fill="lightgreen") + theme_classic() +
+  labs(
+    title = "Weight distribution 1993",
+    subtitle = "Post unit correction",
+    caption = "Dataset civ88-08 nutri.dta.",
+  ) + xlab("weight in kg") +theme(
+    plot.title = element_text(size = 8),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6))
+ 
+weight1988<- nutri %>% filter(year==1988) %>% select(weightkg)
+ plot1988after<- ggplot(weight1988, aes(weightkg)) + geom_histogram(col="black", fill="lightpink") + theme_classic() +
+  labs(
+    title = "Weight distribution 1988",
+    subtitle = "Post unit correction",
+    caption = "Dataset civ88-08 nutri.dta.",
+  ) + xlab("weight in kg") +theme(
+    plot.title = element_text(size = 8),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6))
+ 
+ grid.arrange(plot1988after, plot1993after, plot2008after, nrow = 1)
+```
+
+After correcting for the weight measurement error we observe a 2008 weight distribution closer to the normal distribution, meaning that we finally obtained a sample from which we can estimate statistics regarding the population.
+
+## 2. Z Scores
+
+Using the variables medheight and stdheight, compute each child's z-score.
+
+$z = \frac {height - WHOMedian (sex, age)} {WHOstddev (sex,age)}$
+
+```{r}
+#zscore
+nutri <- nutri %>% mutate(zscore= (height- medheight)/stdheight)
+
+```
+
+```{r, fig.width=2, fig.height=2}
+#zscore ggplot
+par(pin = c(5, 5))
+ggplot(nutri, aes(x = zscore)) +
+  geom_histogram(binwidth = 0.5, fill = "peachpuff", color = "black") +
+  ggtitle("Histogram z-score") +
+  xlab("zscore") +
+  xlim(-5, 5)  +
+    geom_density(alpha=.1, fill="#FF6666") + theme_bw() + labs(caption = "Source:civ88-08 nutri.dta") +theme(
+    plot.title = element_text(size = 8),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6))
+
+```
+
+By plotting the z score distribution we cannot properly identify a normal distribution. Such right skewed distribution may be caused by the selection of a non-representative sample and therefore corrected by the weights used for the sample, or be due to the measurement error. Moreover, once again, we observe abnormal values possible related to a measurement error; we will later one consider z scores above 3 and below -3 as outliers.
+
+## 3. Height Stature over time and across regions
+
+We firstly estimate the pure stunting rate with no correction, and later one repeat such estimation while excluding abnormal values -outliers- considered as such if above 3 or below -3, meaning 3 standard deviations away from the median of the reference population. Our decision to consider outliers values below -3 or above 3 derives from the range of z-scores for children aged 2-5 years old published by the World Health Organisation.
+
+By computing stunting rates with and without outliers we expect to find lower stunting rates for data without outliers; this can be explained by the presence of abnormal values for height, which exhibits unrealistically low values and therefore artificially increase the stunting rate. In fact, values as low as 1 centimeter are observed, which is not possible at any age. Eliminating outliers, while still accounting for possible measurement errors, should allow to obtain a more realistic overall estimation of stunting rate on national and regional level for boys and girls.
+
+**a) Stunting rate by Region and Year**
+
+We estimate the stunting rate for 2--4 years old children over time in the North, in the South, and at the national level.
+
+```{r}
+#over time: for 1988, 1993 and 2008
+
+
+nutri_clean1 <- nutri[!is.na(nutri$zscore), ]
+nutri_clean1 <- nutri_clean1[!is.na(nutri_clean1$pweight), ]
+nutri_clean1$dummy_zscore <- ifelse(nutri_clean1$zscore <= -2, 1, 0)
+
+#national level#
+
+nat_stunting_rate_1988 <- nutri_clean1 %>%
+  filter(year == 1988) %>% 
+  filter(age > 24 & age < 48) %>% 
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+nat_stunting_rate_1993 <- nutri_clean1 %>%
+  filter(year == 1993) %>% 
+  filter(age > 24 & age < 48) %>% 
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+nat_stunting_rate_1993 <- nutri_clean1 %>%
+  filter(year == 1993) %>% 
+  filter(age > 24 & age < 48) %>% 
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+nat_stunting_rate_2008 <- nutri_clean1 %>%
+  filter(year == 2008) %>% 
+  filter(age > 24 & age < 48) %>% 
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+#northern region#
+
+
+north_stunting_rate_1988 <- nutri_clean1 %>%
+  filter(year == 1988) %>% 
+  filter(age > 24 & age < 48) %>% 
+  filter(north == 1)%>%
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+north_stunting_rate_1993 <- nutri_clean1 %>%
+  filter(year == 1993) %>% 
+  filter(age > 24 & age < 48) %>% 
+  filter(north == 1)%>%
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+north_stunting_rate_2008 <- nutri_clean1 %>%
+  filter(year == 2008) %>% 
+  filter(age > 24 & age < 48) %>% 
+  filter(north == 1)%>%
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+#southern region
+
+south_stunting_rate_1988 <- nutri_clean1 %>%
+  filter(year == 1988) %>% 
+  filter(age > 24 & age < 48) %>% 
+  filter(north == 0)%>%
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+south_stunting_rate_1993 <- nutri_clean1 %>%
+  filter(year == 1993) %>% 
+  filter(age > 24 & age < 48) %>% 
+  filter(north == 0)%>%
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+south_stunting_rate_2008 <- nutri_clean1 %>%
+  filter(year == 2008) %>% 
+  filter(age > 24 & age < 48) %>% 
+  filter(north == 0)%>%
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+#if we do the same, but remove the outliers defined as observations with a z value higher than 3
+
+nat_stunting_rate_1988_out <- nutri_clean1 %>%
+  filter(year == 1988) %>% 
+  filter(age >= 24 & age <= 48) %>% 
+  filter(zscore >= -3 & zscore <= 3) %>%  
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+
+nat_stunting_rate_1993_out <- nutri_clean1 %>%
+  filter(year == 1993) %>% 
+  filter(age >= 24 & age <= 48) %>% 
+  filter(zscore >= -3 & zscore <= 3) %>%  
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+nat_stunting_rate_2008_out <- nutri_clean1 %>%
+  filter(year == 2008) %>% 
+  filter(age >= 24 & age <= 48) %>% 
+  filter(zscore >= -3 & zscore <= 3) %>%  
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+#northern region#
+
+
+north_stunting_rate_1988_out <- nutri_clean1 %>%
+  filter(year == 1988) %>% 
+  filter(age >= 24 & age <= 48) %>% 
+  filter(north == 1)%>%
+  filter(zscore >= -3 & zscore <= 3) %>%  
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+north_stunting_rate_1993_out <- nutri_clean1 %>%
+  filter(year == 1993) %>% 
+  filter(age >= 24 & age <= 48) %>% 
+  filter(north == 1)%>%
+  filter(zscore >= -3 & zscore <= 3) %>%  
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+north_stunting_rate_2008_out <- nutri_clean1 %>%
+  filter(year == 2008) %>% 
+  filter(age >= 24 & age <= 48) %>% 
+  filter(north == 1)%>%
+  filter(zscore >= -3 & zscore <= 3) %>%  
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+#southern region
+
+south_stunting_rate_1988_out <- nutri_clean1 %>%
+  filter(year == 1988) %>% 
+  filter(age >= 24 & age <= 48) %>% 
+  filter(north == 0)%>%
+  filter(zscore >= -3 & zscore <= 3) %>%  
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+south_stunting_rate_1993_out <- nutri_clean1 %>%
+  filter(year == 1993) %>% 
+  filter(age >= 24 & age <= 48) %>% 
+  filter(north == 0)%>%
+  filter(zscore >= -3 & zscore <= 3) %>%  
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+south_stunting_rate_2008_out <- nutri_clean1 %>%
+  filter(year == 2008) %>% 
+  filter(age >= 24 & age <= 48) %>% 
+  filter(north == 0)%>%
+  filter(zscore >= -3 & zscore <= 3) %>%  
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+# creating a table
+stunting_rates <- data.frame(
+  region = c("National", "National", "National", "Northern", "Northern", "Northern", "Southern", "Southern", "Southern"),
+  year = c(1988, 1993, 2008, 1988, 1993, 2008, 1988, 1993, 2008),
+  stunting_rate = c(
+    nat_stunting_rate_1988$stunting_rate,
+    nat_stunting_rate_1993$stunting_rate,
+    nat_stunting_rate_2008$stunting_rate,
+    north_stunting_rate_1988$stunting_rate,
+    north_stunting_rate_1993$stunting_rate,
+    north_stunting_rate_2008$stunting_rate,
+    south_stunting_rate_1988$stunting_rate,
+    south_stunting_rate_1993$stunting_rate,
+    south_stunting_rate_2008$stunting_rate
+  ),
+  stunting_rate_without_outliers = c(
+    nat_stunting_rate_1988_out$stunting_rate,
+    nat_stunting_rate_1993_out$stunting_rate,
+    nat_stunting_rate_2008_out$stunting_rate,
+    north_stunting_rate_1988_out$stunting_rate,
+    north_stunting_rate_1993_out$stunting_rate,
+    north_stunting_rate_2008_out$stunting_rate,
+    south_stunting_rate_1988_out$stunting_rate,
+    south_stunting_rate_1993_out$stunting_rate,
+    south_stunting_rate_2008_out$stunting_rate
+  )
+)
+
+#table
+kable(stunting_rates, caption = "Stunting Rates by Region and Year ", col.names = c("Region", "Year", "Stunting rate", "Stunting rate without outliers")) %>%  
+  kable_paper("hover", full_width = F, html_font = "Cambria") %>% kable_styling(bootstrap_options = c("striped", "hover"),  position = "float_left")
+
+
+
+
+
+```
+
+Excluding outliers, namely not taking into account z-scores lower than -3 and higher than 3, in our estimation leads to lower stunting rate estimates, in line with our predictions.
+
+Stunting rates steadily increase over the years at every regional and national level when computing the rates including outliers; when excluding outliers from the computation of the stunting rates the increasing trend is not constant, but we can still observe higher stunting rate in 2008 compared to 1988 for each region.
+
+**b) Stunting rate by Gender**
+
+Estimate the stunting rate for 2--4 years old children over time for boys and for girls at the national level.
+
+```{r}
+# Stunting rate by Gender
+nutri_clean <- nutri[!is.na(nutri$zscore), ]
+nutri_clean <- nutri_clean[!is.na(nutri_clean$pweight), ]
+nutri_clean$dummy_zscore <- ifelse(nutri_clean$zscore <= -2, 1, 0)
+
+
+#boys without outliers
+
+nat_stunting_rate_1988_boys <- nutri_clean %>%
+  filter(year == 1988) %>% 
+  filter(age >= 24 & age <= 48) %>% 
+  filter(zscore >= -3 & zscore <= 3) %>%  
+  filter(sexe == 1) %>%  
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+
+nat_stunting_rate_1993_boys <- nutri_clean %>%
+  filter(year == 1993) %>% 
+  filter(age > 24 & age < 48) %>% 
+  filter(zscore >= -3 & zscore <= 3) %>% 
+  filter(sexe == 1) %>% 
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+nat_stunting_rate_2008_boys <- nutri_clean %>%
+  filter(year == 2008) %>% 
+  filter(age >= 24 & age <= 48) %>% 
+  filter(zscore >= -3 & zscore <= 3) %>% 
+  filter(sexe == 1) %>% 
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+#boys with outliers
+
+nat_stunting_rate_1988_boys_tot <- nutri_clean %>%
+  filter(year == 1988) %>% 
+  filter(age >= 24 & age <= 48) %>% 
+  filter(sexe == 1) %>%  
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+
+nat_stunting_rate_1993_boys_tot <- nutri_clean %>%
+  filter(year == 1993) %>% 
+  filter(age > 24 & age < 48) %>% 
+  filter(sexe == 1) %>% 
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+nat_stunting_rate_2008_boys_tot <- nutri_clean %>%
+  filter(year == 2008) %>% 
+  filter(age >= 24 & age <= 48) %>% 
+  filter(sexe == 1) %>% 
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+
+
+#######
+#girls#
+#######
+
+#girls without outliers
+
+nat_stunting_rate_1988_girls <- nutri_clean %>%
+  filter(year == 1988) %>% 
+  filter(age >= 24 & age <= 48) %>% 
+  filter(zscore >= -3 & zscore <= 3) %>%  
+  filter(sexe == 0) %>%  
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+
+nat_stunting_rate_1993_girls <- nutri_clean %>%
+  filter(year == 1993) %>% 
+  filter(age > 24 & age < 48) %>% 
+  filter(zscore >= -3 & zscore <= 3) %>% 
+  filter(sexe == 0) %>% 
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+nat_stunting_rate_2008_girls <- nutri_clean %>%
+  filter(year == 2008) %>% 
+  filter(age >= 24 & age <= 48) %>% 
+  filter(zscore >= -3 & zscore <= 3) %>% 
+  filter(sexe == 0) %>% 
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+#girls with outliers
+
+nat_stunting_rate_1988_girls_tot <- nutri_clean %>%
+  filter(year == 1988) %>% 
+  filter(age >= 24 & age <= 48) %>% 
+  filter(sexe == 0) %>%  
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+
+nat_stunting_rate_1993_girls_tot <- nutri_clean %>%
+  filter(year == 1993) %>% 
+  filter(age > 24 & age < 48) %>% 
+  filter(sexe == 0) %>% 
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+nat_stunting_rate_2008_girls_tot <- nutri_clean %>%
+  filter(year == 2008) %>% 
+  filter(age >= 24 & age <= 48) %>% 
+  filter(sexe == 0) %>% 
+  summarise(
+    stunting_rate = round(sum(dummy_zscore*pweight)/sum(pweight)* 100, 2)       
+  )
+
+
+
+
+#Creating a table
+# creating a table
+stunting_rates_sex <- data.frame(
+  region = c("National", "National", "National"),
+  year = c(1988, 1993, 2008),
+  boys = c(
+    nat_stunting_rate_1988_boys_tot$stunting_rate,
+    nat_stunting_rate_1993_boys_tot$stunting_rate,
+    nat_stunting_rate_2008_boys_tot$stunting_rate
+  ),
+  boys_no_outliers = c(
+    nat_stunting_rate_1988_boys$stunting_rate,
+    nat_stunting_rate_1993_boys$stunting_rate,
+    nat_stunting_rate_2008_boys$stunting_rate
+  ),
+  girls = c(
+    nat_stunting_rate_1988_girls_tot$stunting_rate,
+    nat_stunting_rate_1993_girls_tot$stunting_rate,
+    nat_stunting_rate_2008_girls_tot$stunting_rate
+  ),
+  girls_no_outliers = c(
+    nat_stunting_rate_1988_girls$stunting_rate,
+    nat_stunting_rate_1993_girls$stunting_rate,
+    nat_stunting_rate_2008_girls$stunting_rate
+  )
+)
+
+
+
+
+```
+
+```{r}
+#table stunting rate by gender
+kable(stunting_rates_sex, caption = "Stunting Rates by Sex over Time", , col.names = c("Region", "Year", "Boys", "Boys no outliers", "Girls", "Girls no outliers")) %>%  
+  kable_paper("hover", full_width = F, html_font = "Cambria") %>% kable_styling(bootstrap_options = c("striped", "hover"),  position = "float_left")
+```
+
+Stunting rates calculated without excluding outliers are higher for boys than for girls and increase over time; when excluding outliers stunting rates for boys remain higher than the ones related to girls for the years 1988 and 1993, but not for 2008. Increase in stunting rates over time without outliers is not consistent across years but we can still observe higher stunting levels for both genders for 2008 compared to 1988. We will later on explore the motives behind the increase in stunting rates over the years and its link with per capita consumption; as of now, it is worth mentioning what can be described as an overall increase in starting rates from 1988 to 2008 for both gender at every regional level.
+
+As previously mentioned, the exclusion of outliers, which are to be related to unplausible low values of height most likely due to measurement errors, leads to lower estimates for stunting rates for both genders.
+
+## 3. Height Stature and poverty
+
+In order to study how the gradient of the number of stunted children aged 2--4 years, the household consumption per capita and their relationship changed over the years we estimate three regression models to analyse the effect of time on the variables and the relationship between the variables themselves.
+
+**Stunting over the years**
+
+We firstly create dummy variables for each year and then regress the year dummies on the binary variable equal to one in case of stunted children and equal to zero otherwise.
+
+```{r}
+# create dummies for years
+nutri2 <- nutri %>% mutate(stunted = ifelse(zscore <= -2, 1, 0))
+nutri2 <- nutri2 %>%
+  mutate(yearcat = case_when(
+    year == 1988 ~ 1,
+    year == 1993 ~ 2,
+    year == 2008 ~ 3
+  )) %>%
+  mutate(constunt = conspc88 * stunted)
+# regression models
+model <- nutri2 %>%
+  lm(stunted ~ yearcat, data = ., weights=pweight)
+
+model2 <- nutri2 %>%
+  lm(conspc88 ~ yearcat, data = ., weights = pweight)
+
+model3 <- nutri2 %>%
+lm(stunted ~ conspc88 + yearcat + yearcat*conspc88, weights = pweight, data=.)
+
+outreg1 <- huxtable::huxreg(summary(model), error_format = "({std.error})",
+                 error_pos = "below",
+                 statistics = c(N = "nobs", R2 = "r.squared"),
+                 align = "center") %>%
+  set_caption("Regression output for stunting rate over the years")
+set_latex_float(outreg1, value = "H")
+```
+
+From our regression model we observe a positive and statistically significant effect of year over stunting, meaning that the probability of observing a stunted child increased over the years. The coefficient for years is statistically significant at the 0.1% significance level. While the literal interpretation of the coefficient may not be very meaningful since we can only estimate the regression over three years, a limit of our model, we report it for completeness: we estimate that, on average, the average chronological change between the execution of the surveys is associated with an increase of 0.137 in the probability of observing a stunted child.
+
+**Consumption over the years**
+
+We regress the dummies for years on the per capita consumption (in West African CFA Franc) to observed the effect of the years on consumption.
+
+```{r}
+#regression consumption years
+outreg2 <- huxtable::huxreg(summary(model2), error_format = "({std.error})",
+                 error_pos = "below",
+                 statistics = c(N = "nobs", R2 = "r.squared"), 
+                 stars = c(`***` = 0.01, `**` = 0.05, `*` = 0.1),
+                 note = "{stars}",
+                 align = "center") %>%
+  set_caption("Regression output for consumption over the years")
+set_latex_float(outreg2, value = "H")
+```
+
+We observe a negative and statistically significant (1% significance level) effect of time over consumption per capita in West African CFA Franc, meaning that consumption decreased significantly over the years, a result in line with the observed increase in stunting. Once again, the literal interpretation of the coefficient is not very meaningful due to the limits of our regression, but we can interpret the regression coefficient as the estimated decrease in consumption (of 61.214 francs) associated with the average chronological change in time from one survey to the other.
+
+**Relationship between consumption and stunting**
+
+Lastly, we observed how the relationship between the two variables changed over the years by regressing the year dummies on the interaction between consumption and years and consumption.
+
+```{r}
+#regression relationship years
+outreg3 <- huxtable::huxreg(summary(model3), error_format = "({std.error})",
+                 error_pos = "below",
+                 statistics = c(N = "nobs", R2 = "r.squared"), 
+                 stars = c(`***` = 0.01, `**` = 0.05, `*` = 0.1),
+                 note = "{stars}",
+                 align = "center") %>%
+  set_caption("Regression output for consumption and stunting")
+set_latex_float(outreg3, value = "H")
+```
+
+We do not observe a statistically significant coefficient related to the relationship between consumption and stunting over time: we cannot accept the hypothesis of a chronological change in time from one survey to another having a significant effect on the relationship between per capita consumption and stunting.
+
+**Consumption over time**
+
+In order to better interpret our regression results we observe how the consumption per capita evolved over time in Cote d'Ivoire.
+
+```{r, fig.width=3, fig.height=4}
+#consumption over the years
+nutri %>%
+  ggplot(aes(x = factor(year), y = conspc88, fill = factor(year))) + 
+  geom_boxplot() +
+  labs(x = "Year", y = "Consumption per Capita", fill = "Year", caption = "Source:civ88-08 nutri.dta", title = "Consumption per capita across years", subtitle ="Boxplots") +
+  theme_minimal() +
+    stat_summary(fun.y=mean, geom="point", shape=5, size=4) +theme(
+    plot.title = element_text(size = 8),     
+    plot.subtitle = element_text(size = 7),  
+    plot.caption = element_text(size = 7),
+     axis.title.x = element_text(size = 6),
+     axis.title.y = element_text(size=6)) 
+```
+
+Consumption per capita decreased over the years, which explains the increase in the stunting rate and is in fact in line with our regression results. Such results can be explained from a historical and economical point of view: Cote d'Ivoire suffered a strong macroeconomic crisis starting from 1988, which rapidly led to social unrest.; as a result, GDP per capita and private and household consumption per capita fell and poverty almost doubled in every region. The country did not recover from the crisis in the following 15 years, with poverty levels remaining high and even reaching 41% in 2008 [^3].
+
+[^3]: Cogneau, D., Houngbedji, K., & Mesplé-Somps, S. (2014). The fall of the elephant: Two decades of poverty increase in Côte d'Ivoire (1988-2008). In Working Paper Series. https://doi.org/10.35188/unu-wider/2014/865-0
+
+\newpage
+
+# 3. A meaningful table
+
+```{r}
+#final dataset after tidying and joining
+final <- read_excel("final.xlsx")
+final<- final %>%  mutate(Population=`Population, total`/100000000)
+final<- final %>% mutate(Young= `Age dependency ratio, young`/10000000000000)
+
+#regression model
+modelfinal <- lm(data=final, log(People+1)~is_french_colony+ Population + Young+as.factor(Year))
+
+
+model_summary <- summary(modelfinal)
+coefficients_rounded <- round(model_summary$coefficients, 2)
+colnames(coefficients_rounded)[which(colnames(coefficients_rounded) == "Pr(>|t|)")] <- "p-value"
+
+coefficients_rounded <- as.data.frame(coefficients_rounded)
+coefficients_rounded <- coefficients_rounded[2:8,]
+new_row <- c(3.93,	0.15,	25.97,	0.00)
+
+coefficients_rounded <-rbind(Intercept = new_row, coefficients_rounded)
+
+#regression table
+library(huxtable)
+library(broom)  # For tidying the model output
+
+
+
+kable(coefficients_rounded, caption = "Determinants of the Number of Immigrants in France by Country: log-linear regression on inflow of immigrants in France per country ") %>%
+  kable_styling(, latex_options= "scale_down", bootstrap_options = c("striped", "hover", "condensed"), full_width = F, position = "center") %>% 
+  add_header_above(c(" " = 1, "Coefficients" = 4))%>%
+  footnote(general = paste(
+    "Source: OECD and World Bank, from 2015 until 2019. Coverage: all countries except for the EU countries.",
+    "Time period: 2015-2019.",
+    "Units: The dependent variable under logarithmic transformation is the number of immigrants in France by country in the period from 2015 to 2016.",
+    
+    "is_french_colony is a dummy variable with value equal to 1 when the country of origin is a former French colony under the 1930 empire.",
+    
+    "The 'Population' variable represents the country total population in 100 millions.",
+    
+    "The 'Young' variable represents the percentage of young people <15 years old to the workforce.",
+    
+    "Time fixed effects for the years 2015-2019.",
+    sep = " "
+  ), threeparttable = T)  
+
+
+```
+
+We decided to analyse the relationship between inflow of workers to France and ex colonial status of the country of origin through a regression model. Studying how past colonial occupations influence migration is particularly interesting in the context of France; in fact, French economic immigration exhibits peculiar characteristics in diversity and volume, especially when compared to similar OECD countries; there is, in fact, low diversity in the countries of origins of immigrants, and an overall low inflow of immigrants.
+
+Our model estimates a positive and statistically significant effect of being a former French colony on a country migration outflow to France: being a former colony is associated with an average increase in inflow to France of 273%. Many possible factors could explain the estimated strong impact of being a former french territory: the absence of language barriers for some former colonies (such as Algeria and Morocco) facilitating the integration in France; homogeneous or similarly structured administrative procedures in the former french occupied territories may influence people's decision to move when applying for a VISA or permit; lastly, people in former colonies may possess cultural or familiar ties to France, increasing migration incentives. In order to explore each possible factor we would need to incorporate more control variables in our study, such as national GDP of country of origin, and eventually completing a qualitative analysis on people's incentives to migrate. Our study presents, however, many limits related to the oversimplification of the model and the availability of data; the main limitation regards the high possibility of omitted variable bias in the estimation of the model, which would require an higher number of controls. Despite the limited statistical accuracy of the estimated causal effect, our model could be nonetheless an interesting starting point in the study of French immigration and in explaining the low diversity in immigrants countries of origins.
+
+\newpage
+
+### Complete Code
+
+```{r ref.label=all_labels(), echo=T, eval=FALSE}
+
+```
+
+```{r, echo=TRUE, eval=FALSE}
+
+# Tidying of final dataset
+data <- read_excel("Data_Migration.xlsx")
+
+data_colonial <- data %>%
+  mutate(is_french_colony = if_else(Migrant_Country %in% c(
+    "Algérie", "Maroc", "Tunisie", "Mauritanie", "Mali", "Niger", "Tchad", "Guinée", "Côte d'Ivoire", 
+    "Burkina Faso", "Bénin", "Sénégal", "Djibouti", "Madagascar", "Comores", "Gabon", 
+    "République centrafricaine", "Congo", "Liban", "Syrie", "Vietnam", "Laos", "Cambodge"
+  ), 1, 0))
+
+data_colonial_2 <- data_colonial %>% filter(Year %in% c(2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022)) %>% 
+  filter(!Migrant_Country %in% c(
+    "Allemagne", "Autriche", "Belgique", "Bulgarie", "Chypre", "Croatie", "Danemark", "Espagne", 
+    "Estonie", "Finlande", "France", "Grèce", "Hongrie", "Irlande", "Italie", "Lettonie", 
+    "Lituanie", "Luxembourg", "Malte", "Pays-Bas", "Pologne", "Portugal", "République tchèque", 
+    "Roumanie", "République Slovaque", "Slovénie", "Suède", "Ex-Tchécoslovaquie", "Monaco", "Islande", "Monde", "Monde non specifié",
+    "Royaume-Uni"
+  ))
+complementary_data <- read_excel("complementary_data.xlsx")
+
+
+library(tidyr)
+
+data_long <- complementary_data%>%
+  pivot_longer(cols = c(5:9),
+               names_to = "Year", 
+               values_to = "Value")
+View(data_long)
+
+
+data_wide <- data_long %>%
+  pivot_wider(names_from = `Series Name`, values_from = Value)
+
+View(data_wide)
+new <- data_wide %>%
+  select(-`Population, total`) %>%  
+  filter(!is.na(`Age dependency ratio, young`)) %>% 
+  mutate(Year = as.numeric(Year))
+# Perform the left join
+combined_data <- left_join(data_colonial_2, new, by = c("Year","Migrant_country_abb") )
+
+new2 <- data_wide %>%
+  select(-`Age dependency ratio, young`) %>%  
+  filter(!is.na(`Population, total`)) %>% 
+  mutate(Year = as.numeric(Year))  
+  
+  
+# Perform the left join
+combined_data2 <- left_join(combined_data, new2, by = c("Year","Migrant_country_abb") )
+
+final <- combined_data2 %>% 
+  filter(Year %in% c(2015, 2016, 2017, 2018, 2019))
+
+```
