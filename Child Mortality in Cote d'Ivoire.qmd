@@ -58,7 +58,6 @@ kable(data.frame(
 # not random missing values, selection bias
 ```
 
-The high number of missing values in the data set regarding the physical characteristics of children for a nationally representative sample of households in Cote d'Ivoire may hide a problem of biased sample, which would arise in the case of missing values not being independent from the other variables.
 
 ```{r}
 kable(sapply(nutri, function(na) {sum(is.na(na))}), caption = "Number of missing values per variable", col.names = c("Variable","NAs")) %>%
@@ -67,7 +66,7 @@ kable(sapply(nutri, function(na) {sum(is.na(na))}), caption = "Number of missing
 
 ```
 
-To account for such possibility, we run a regression to analyse the dependence of the presence of missing values and level on per capita consumption.
+Run a regression to analyse the dependence of the presence of missing values and level on per capita consumption.
 
 ```{r}
 missingvalues<- sapply(nutri, function(x){
@@ -97,13 +96,10 @@ set_caption(regindep,"Regression of expenditures per capita on the
             presence of missing values in height and weight")
 ```
 
-We can observe that the coefficients related to the effect of missing values in height and weight on consumption are statistically significant, which indicates that the number of missing values is not independent from the level of consumption, possibly suggesting a biased sample.
 
-To correct for such possible bias we could construct two multiple regression models to estimate the predicted values of height and weight through all the other variables in the data set; consequently, we would substitute the missing values of height and weight with the predicted values obtained from our regression models. However, for the sake of this exercise and to avoid introducing an additional bias, we will not fill in the missing values, since a simple linear regression would not reflect the uncertainty of the imputation; to obtained a less biased estimate I would deem more efficient to impute values through multiple imputation.
 
 ## 1. Sampling
 
-a\) The data set from now on referred to as "mortality" was obtained through household survey for Cote d'Ivoire; to ensure that the survey did not present issues of over or under representation, weights, namely `pweight` , were attributed to each surveyed household. In each surveyed household, one woman between 15 and 49 years old was randomly selected and interviewed, meaning she had a probability of being selected equal to $\frac{1}{n\_wom}$ , where $n\_wom$ is equal to the number of women in the household. Consequently, in order to estimate statistics on the population of women in the country we need to attribute an higher weight to women sampled from bigger household; we can do that by creating a new weight, called `weight,` obtained by multiplying the household weight by the number of women in the household.
 
 ```{r}
 mortality <- mortality %>% mutate(weight = (pweight*n_wom))
@@ -113,14 +109,6 @@ mortality <- mortality %>% mutate(weight = (pweight*n_wom))
 ## 2. Measurement of under 5 mortality
 
 **a) Measuring mortality under 5 years of age.**
-
-The two different methods of computing mortality rates for children aged 0-4 have different drawbacks.
-
-By evaluation the ratio of children born 0 to 4 years ago on the number of deaths we are excluding from our estimation the children who may still die while in the age range 0-4 but after the survey was executed; by estimating the mortality rate through this method we are artificially restricting the sample of dead children, lowering the numerator of the ratio and de facto underestimating the mortality rate.
-
-The second method does not suffer from such issue, but we may encounter other types of difficulties and errors during the process of data collection. The data relative to children born 5 to 9 years ago may in fact be incorrect and the reported number of deaths may suffer from some type of misreporting. It is also important to consider the purpose of the estimation: while the first method may underestimate the mortality rate, the second method may be not entirely precise or not reflect the current situation of the country; the preferred method is therefore at least partially dependent on the reason behind the estimation.
-
-All things considered, the second method should lead to a better estimation of the mortality rate, not suffering from underestimation.
 
 **b) First method**
 
@@ -177,11 +165,6 @@ set_latex_float(models_rates, value = "H")
 
 ```
 
-Computing the mortality rate with the two different methods yields the expected results: the estimates deriving from the first method are lower due to the underestimation of the mortality rate. The two estimations related to the two methods do not, however, differ by a strong margin. Mortality rate are consistently higher for boys than for girls for both methods, consistent with what we would expect from the literature on the matter[^1].
-
-[^1]: https://childmortality.org/
-
-\newpage
 
 # 2. Health status, nutritional status and wealth in Cote d'Ivoire
 
@@ -195,19 +178,10 @@ nutri <- civ88_08_nutri
 
 In 2008, the weight could be measured in either kilograms or hectograms. However, the unit was not systematically reported. It was therefore assumed that all the weights were reported in kilograms.
 
-**a) Sample mean**
-
-To obtain an estimate for an unbiased mean we would have to compute the weighted average of the sample; accounting for the weights allows us to obtain a sample representative of the population and avoid to over or underestimate the value of the mean. The hectogram issue poses some issues, since it skews the distribution of the weight . To correct for such an issue, we would have to know the maximum real weight measured in kilograms for each age group, in order to transform the values over such threshold from hectograms to kilograms and obtain the unbiased mean, while still accounting for weights in order to maintain a representative sample.
-
-$\bar x = \frac{\sum w_ix_\text{i hect}*0.01 + \sum w_ix_\text{i kg}} {\sum w_i}$
-
-We could also estimate the mean by knowing the probability equal to $p$ of a measure being measured in hectograms.
-
-\$\\bar x = \\frac{p}{n}\\sum x_i + \\frac{1-p}{n}\\sum x_i \*0.01\$
 
 **Weight distribution before correction**
 
-The 2008 weight distribution is highly right skewed, showcasing the effect of the hectogram mistake; the 1993 and 1988 weight distribution, on the other hand, exhibit a normal distribution, confirming the presence of measurement errors only for the year 2008.
+
 
 ```{r, fig.width=5, fig.height=3}
 #Weight distribution before correction
@@ -280,15 +254,6 @@ Pre unit correction",
  
 ```
 
-By plotting the distribution of the weight across the years we observe a range of values which appears abnormal if considering that the highest observed age in the data set is of 5 years; the presence of abnormal values could be attributed to the unit mistake, with some weight mistakenly reported in hectograms. We define a threshold of 25 kilograms, based on the average weight for 5 years old, above which we assume values to be in hectograms and therefore convert them in kilograms by multiplying them by $0.1$.
-
-After such correction the weights appear to be in line with the age range 0-5 years, but when comparing the weights to the relative ages we still observe some anomalies. To correct for such issue we define thresholds based on age groups and report values above the thresholds to kilos.
-
-Our defined thresholds per age groups were defined based on the values from the World Health Organisation website which showcases the standard weights for age group[^2]: for each age group we set as upper bound the highest value between the 97th percentile for girls and boys.
-
-[^2]: Weight-for-age. (n.d.). https://www.who.int/tools/child-growth-standards/standards/weight-for-age
-
-Once having operated such correction we get rid of every values lower than 1 kilogram and above 30 kilograms, since they cannot realistically be related to a child's weight.
 
 ```{r}
 #weight threshold for age group
@@ -375,11 +340,10 @@ weight1988<- nutri %>% filter(year==1988) %>% select(weightkg)
  grid.arrange(plot1988after, plot1993after, plot2008after, nrow = 1)
 ```
 
-After correcting for the weight measurement error we observe a 2008 weight distribution closer to the normal distribution, meaning that we finally obtained a sample from which we can estimate statistics regarding the population.
 
 ## 2. Z Scores
 
-Using the variables medheight and stdheight, compute each child's z-score.
+
 
 $z = \frac {height - WHOMedian (sex, age)} {WHOstddev (sex,age)}$
 
@@ -406,17 +370,11 @@ ggplot(nutri, aes(x = zscore)) +
 
 ```
 
-By plotting the z score distribution we cannot properly identify a normal distribution. Such right skewed distribution may be caused by the selection of a non-representative sample and therefore corrected by the weights used for the sample, or be due to the measurement error. Moreover, once again, we observe abnormal values possible related to a measurement error; we will later one consider z scores above 3 and below -3 as outliers.
 
 ## 3. Height Stature over time and across regions
 
-We firstly estimate the pure stunting rate with no correction, and later one repeat such estimation while excluding abnormal values -outliers- considered as such if above 3 or below -3, meaning 3 standard deviations away from the median of the reference population. Our decision to consider outliers values below -3 or above 3 derives from the range of z-scores for children aged 2-5 years old published by the World Health Organisation.
-
-By computing stunting rates with and without outliers we expect to find lower stunting rates for data without outliers; this can be explained by the presence of abnormal values for height, which exhibits unrealistically low values and therefore artificially increase the stunting rate. In fact, values as low as 1 centimeter are observed, which is not possible at any age. Eliminating outliers, while still accounting for possible measurement errors, should allow to obtain a more realistic overall estimation of stunting rate on national and regional level for boys and girls.
-
 **a) Stunting rate by Region and Year**
 
-We estimate the stunting rate for 2--4 years old children over time in the North, in the South, and at the national level.
 
 ```{r}
 #over time: for 1988, 1993 and 2008
@@ -632,13 +590,10 @@ kable(stunting_rates, caption = "Stunting Rates by Region and Year ", col.names 
 
 ```
 
-Excluding outliers, namely not taking into account z-scores lower than -3 and higher than 3, in our estimation leads to lower stunting rate estimates, in line with our predictions.
 
-Stunting rates steadily increase over the years at every regional and national level when computing the rates including outliers; when excluding outliers from the computation of the stunting rates the increasing trend is not constant, but we can still observe higher stunting rate in 2008 compared to 1988 for each region.
 
 **b) Stunting rate by Gender**
 
-Estimate the stunting rate for 2--4 years old children over time for boys and for girls at the national level.
 
 ```{r}
 # Stunting rate by Gender
@@ -808,17 +763,12 @@ kable(stunting_rates_sex, caption = "Stunting Rates by Sex over Time", , col.nam
   kable_paper("hover", full_width = F, html_font = "Cambria") %>% kable_styling(bootstrap_options = c("striped", "hover"),  position = "float_left")
 ```
 
-Stunting rates calculated without excluding outliers are higher for boys than for girls and increase over time; when excluding outliers stunting rates for boys remain higher than the ones related to girls for the years 1988 and 1993, but not for 2008. Increase in stunting rates over time without outliers is not consistent across years but we can still observe higher stunting levels for both genders for 2008 compared to 1988. We will later on explore the motives behind the increase in stunting rates over the years and its link with per capita consumption; as of now, it is worth mentioning what can be described as an overall increase in starting rates from 1988 to 2008 for both gender at every regional level.
-
-As previously mentioned, the exclusion of outliers, which are to be related to unplausible low values of height most likely due to measurement errors, leads to lower estimates for stunting rates for both genders.
 
 ## 3. Height Stature and poverty
 
-In order to study how the gradient of the number of stunted children aged 2--4 years, the household consumption per capita and their relationship changed over the years we estimate three regression models to analyse the effect of time on the variables and the relationship between the variables themselves.
 
 **Stunting over the years**
 
-We firstly create dummy variables for each year and then regress the year dummies on the binary variable equal to one in case of stunted children and equal to zero otherwise.
 
 ```{r}
 # create dummies for years
@@ -848,7 +798,6 @@ outreg1 <- huxtable::huxreg(summary(model), error_format = "({std.error})",
 set_latex_float(outreg1, value = "H")
 ```
 
-From our regression model we observe a positive and statistically significant effect of year over stunting, meaning that the probability of observing a stunted child increased over the years. The coefficient for years is statistically significant at the 0.1% significance level. While the literal interpretation of the coefficient may not be very meaningful since we can only estimate the regression over three years, a limit of our model, we report it for completeness: we estimate that, on average, the average chronological change between the execution of the surveys is associated with an increase of 0.137 in the probability of observing a stunted child.
 
 **Consumption over the years**
 
@@ -870,7 +819,6 @@ We observe a negative and statistically significant (1% significance level) effe
 
 **Relationship between consumption and stunting**
 
-Lastly, we observed how the relationship between the two variables changed over the years by regressing the year dummies on the interaction between consumption and years and consumption.
 
 ```{r}
 #regression relationship years
@@ -884,11 +832,9 @@ outreg3 <- huxtable::huxreg(summary(model3), error_format = "({std.error})",
 set_latex_float(outreg3, value = "H")
 ```
 
-We do not observe a statistically significant coefficient related to the relationship between consumption and stunting over time: we cannot accept the hypothesis of a chronological change in time from one survey to another having a significant effect on the relationship between per capita consumption and stunting.
 
 **Consumption over time**
 
-In order to better interpret our regression results we observe how the consumption per capita evolved over time in Cote d'Ivoire.
 
 ```{r, fig.width=3, fig.height=4}
 #consumption over the years
@@ -905,11 +851,8 @@ nutri %>%
      axis.title.y = element_text(size=6)) 
 ```
 
-Consumption per capita decreased over the years, which explains the increase in the stunting rate and is in fact in line with our regression results. Such results can be explained from a historical and economical point of view: Cote d'Ivoire suffered a strong macroeconomic crisis starting from 1988, which rapidly led to social unrest.; as a result, GDP per capita and private and household consumption per capita fell and poverty almost doubled in every region. The country did not recover from the crisis in the following 15 years, with poverty levels remaining high and even reaching 41% in 2008 [^3].
 
-[^3]: Cogneau, D., Houngbedji, K., & Mesplé-Somps, S. (2014). The fall of the elephant: Two decades of poverty increase in Côte d'Ivoire (1988-2008). In Working Paper Series. https://doi.org/10.35188/unu-wider/2014/865-0
 
-\newpage
 
 # 3. A meaningful table
 
@@ -1028,3 +971,4 @@ final <- combined_data2 %>%
   filter(Year %in% c(2015, 2016, 2017, 2018, 2019))
 
 ```
+
