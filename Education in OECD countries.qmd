@@ -46,12 +46,6 @@ pacman::p_load(tidyverse, dplyr, knitr, haven, ggplot2, kableExtra, dplyr, gtsum
 
 ## 1 Distribution of test scores and summary stats
 
-**Compare the distributions of raw test scores for each test. Comment.**
-
-The density plots showcases scores distributions across the different tests, namely Global, Literacy, and Math. For each year, the average of test scores is between 65 and 70, for every subject. However, while there are not huge variations across years, we observe a decreasing trend in average scores for every subject, suggesting a worsening of performance over time.
-
-Another interesting characteristic regards the distribution of the grades. Global scores are more concentrated towards the top, while later distributions exhibit a wider tail. The distribution of literature scores is shifted towards the left, indicating lower scores. Math exhibits a different trend: while the earlier average is indeed higher, the distribution flattens over time, with the majority of students oscillating in a bigger range.
-
 ```{r, fig.width=7, fig.height=5}
 fe_data <- read_dta("panel97.dta")
 
@@ -134,7 +128,6 @@ grid.arrange(global_graph, lit_graph, math_graph)
 
 ```
 
-From the summary statistic it is possible to clearly observe that the median is higher than the mean for every test score in every year, which may indicate the presence of outliers skewing the distribution.
 
 ```{r}
 scoresd <- fe_data%>%
@@ -179,11 +172,6 @@ kable(scores[-1],
 
 ## 2 Missing values
 
-**How many missing values are there for each test score? Is this a problem if you want to study pupils' trajectories or progress?**
-
-Missing values increase for later years, which may represent an issue in tracking students' progress over time if the missing variables are not missing at random. It is highly likely that the missing values are related to students dropping out of school, and therefore students with lower grades. If that is the case, the estimated averages and distributions for later years will be overestimated due to the upward bias.
-
-Moreover, a reduced sample size will result in higher standard errors and less precise estimation.
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 na_counts <- fe_data %>%
@@ -214,9 +202,9 @@ kable(na_counts, caption = "Missing values of test score", digits = 2)%>%
 
 ## 3 Global score after 3 years against the entry score
 
-**Plot the global score after 3 years against the entry score. Can you find a more meaningful way to present this information? Comment.**
+**Plot the global score after 3 years against the entry score**
 
-The graph shows the correlation between students' global score in the entry test in the x axis and after three years, in the y axis. We observe a positive correlation, meaning that students with higher initial scores tend to have relatively higher scores after three years; we do not observe a perfect linear correlation since many points lie below the 45 degree line, meaning that students tend to perform better in the initial exam.
+The graph shows the correlation between students' global score in the entry test in the x axis and after three years.
 
 ```{r, fig.width=4.5, fig.height=4}
 ggplot(fe_data, aes(x = gscore_t1, y = gscore_t2)) + 
@@ -236,7 +224,6 @@ ggplot(fe_data, aes(x = gscore_t1, y = gscore_t2)) +
         legend.title = element_text(size = 7)) 
 ```
 
-We perform the regression to better observe the correlation, and we do find a coefficient of 0.905, which translate in an almost one to one association between scores, with students performing better in initial tests: a one point higher initial test score is associated with a 0.905 higher test score after 3 years.
 
 ```{r}
 
@@ -255,7 +242,6 @@ set_latex_float(model, value = "H")
 
 ## 4 Analyzing progress
 
-**a) With the variables at hand, how would you measure a pupil's progress between the first and the third year of primary school? Between the third year and the final year of primary school?**
 
 We can measure a pupil's progress between the first and the third year and between the third year and the final year of primary school either by looking at absolute or relative scores.
 
@@ -265,11 +251,9 @@ However, to understand the intensity of the change in test scores it may be usef
 
 Positive changes in deciles $\Delta d\_gscore > 0$ indicate improvements relative to other students, while $\Delta d\_gscore < 0$ indicate a shift downwards in the score distribution, and $\Delta d\_gscore = 0$ implies that the pupil remained in the same decile.
 
-**b) Implement the strategy you suggest and provide a summary of the distributions of the variables you computed. Comment.**
-
 We compute the relative change of the score of the pupil relative to the whole distribution by plotting the difference between the decile to which the student belongs in the two periods.
 
-Overall, we observe that the distribution did not change drastically, meaning that overall students remained in the same decile. However, we can conclude that between the first and third year students experienced a decrease in scores (distribution skewed to the left) while they experienced a relative improvement between the third and final year.
+
 
 ```{r, fig.width=4, fig.height=4}
 
@@ -310,12 +294,6 @@ grid.arrange(p1, p2)
 
 **b) Summary stats of decile differences**
 
-Between the first and third year the mean of change in decile is negative, indicating an average worsening of relative test score perfomance, which may be due to unbiased estimates (due to missing variables of lower performing students dropping out) .
-
-**Why is the of the change average not zero?** missing values, weaker students are more likely to disappear so average change in decile is negative.
-
-The big differential attrition that is causing the average change to be negative is the missing values between one to two while between two to three there are fewer missing values.
-
 ```{r}
 sum_stats_decile <- fe_data %>%
   select(delta_d_gscore_1_2, delta_d_gscore_2_3)
@@ -347,19 +325,9 @@ kable(sum_stats_table_decile, caption = "Summary Statistics of Decile Change", d
 
 ## 5 Mobility between two successive tests in deciles
 
-**Compute transition matrices across deciles of the global score distribution between test 1 and test 2,then between test 2 and test 3. Comment.**
+**Compute transition matrices across deciles of the global score distribution between test 1 and test 2,then between test 2 and test 3**
 
-The transition matrices show higher probabilities closer to the diagonal identity, meaning that students have higher probabilities to remain in the same decile between test taken in different years. Nonetheless, the probability distribution is not perfectly concentrated in the diagonal, meaning that there is some more mobility between the adjacent percentiles.
 
-The least mobile percentiles correspond to the extreme: students in the highest and lowest percentiles have lower probabilities of moving across the distribution.
-
-Between the first and second test, we observe that student that perform in the 10th percentile in the first test have a probability of remaining in the 10th percentile in the second test of 47%, while their probability of moving to a decile lower than the 6th is less than 5%. The same mechanism is in act for low performing students, with students in the 1st decile in the first test having a probability of remainig in that decile of 44% and an almost zero probability of moving to the top decile (0.3%).
-
-Scores between the second and third test highlight the same trend: almost 41% of the students in the bottom decile in the second test remain in such decile in the third test, while less than the 3% manages to move above the 6th decile. Conversely, the probability of being in the 10th decile in the third test is 57% for students belonging to the 10th decile in the previous test.
-
-Middle deciles are more mobile, with students belonging in the 5th decile during the second test having a probability of ending up between the third and eight decile between 10% and 18%.
-
-As a general trend, we observe a slightly higher mobility between the first two tests, especially in the extreme deciles, which may indicate that it is more difficult to move along the score distribution later in the years, with earlier performances and learning outcomes having long lasting effects.
 
 ```{r, fig.width=4, fig.height=4}
 matrix21 <- fe_data %>%
@@ -427,8 +395,6 @@ grid.arrange(matrix21_grph, matrix32_grph, ncol = 1, nrow=2)
 ## 6 Birth date and scores
 
 #### a) Global test scores of pupils by Month of Birth
-
-**Compare the global test scores of pupils born in January vs. those born in December on each of the three tests ("gscore t1", "gscore t2", "gscore t3") and provide the 95% confidence interval for the difference between test scores. Interpret your findings. (2 points)**
 
 We compare test scores espressed in deciles between pupils born in January and in December across the three global scores, showcasing the 95% confidence interval for the difference between the average scores of the two categories.
 
@@ -498,9 +464,6 @@ means <- rbind(means_birth, means_occ) %>%
            threeparttable = TRUE) %>% kable_classic_2()  
 ```
 
-Pupils born in January perform consistently better in the tests, with the difference being statistically different from zero at the 95% level for every test. The difference in deciles decreases for subsequent tests.
-
-Such results can be explained by the fact that pupils born in January are almost one year older than pupils born in December, while being in the same grade; the age advantage, however, seems to shrinken over the years, with students seemingly catching up to the same level. It is intuitive why the effect may be particurary relevant at the time of the first test, when children are only 5 or 6 years old - an age at which a difference of a few months can play a huge role in cognitive development.
 
 ```{r, fig.width=4, fig.height=4}
 
@@ -542,7 +505,7 @@ ggplot(birth, aes(x = test, y = mean, fill = Group)) +
 
 #### b) Global test scores of pupils born in Jan vs december given parents' occupation
 
-We compare test scores expressed in deciles between pupils with parents having different occupations, namely 'Executives' and 'Blue collars', showcasing the 95% confidence interval for the difference between the average scores of the two categories. We observe significantly higher deciles for the children of Executives, with the difference being in fact statistically difefrent form zero at the 95% level for every test. The difference in decile increases for subsequent tests, signaling a reinforcement of the advantage of executive's children, which indicates that the mechanisms that lead to higher grades - such as better studying conditions, more help from the parents and better tools as a result of higher income - widen the gap over time.
+
 
 ```{r}
  kable(
@@ -560,7 +523,7 @@ We compare test scores expressed in deciles between pupils with parents having d
            threeparttable = TRUE) %>% kable_classic_2()
 ```
 
-To better analyse the trend in deciles composition as a function of age and parents occupation we plot the differences by Birth and Parents occupation for each test. Differences in deciles by birth appear to decrease over time - with scores reflecting the decreasing advantage of age as a consequence of students learning the same curriculum and catching up; on the other hanbd, the difference given by parents occupation becomes more significant over time. Economic and structural factors, such as income, available time of the parents, better housing conditions and resources, appear to have reinforcing and long lasting effects on educational outcomes.
+To better analyse the trend in deciles composition as a function of age and parents occupation we plot the differences by Birth and Parents occupation for each test. 
 
 ```{r, fig.width=4, fig.height=4}
 
@@ -592,17 +555,7 @@ ggplot(means, aes(x = test, y = diff, fill = type)) +
         legend.title = element_text(size = 7)) 
 ```
 
-#### c) Why is the comparison of test scores of children born in January vs. December likely to underestimate the true effect of relative age differences on test scores? (1 point)
 
-Performing the pure comparison of test scores of children born in December and January is likely to estimate a biased effect of age.
-
-There are different factors that may be at play:
-
--   Students attend the test in September, which influences the scores and may lead to a downward bias in the estimated effect of age: taking the test after the whole summer decreases the influence of age, especially for the first test, as students have not learned the curriculum yet and have spent the whole summer not studying.
-
--   December-born students may be more likely to fail a grade and repeat it, leading to a biased estimate for the following tests as they perform better; such occurrence appears however unlikely in the context of very young students.
-
--   Parents of children born in December may decide to wait a year to enroll their kids, or January-born children's parents may decide to enroll them a year earlier, leading to a selection bias in the sample of the relative grade.
 
 # Education in OECD countries
 
@@ -612,7 +565,7 @@ pisa <- read_dta("pisa_2012.dta")
 
 ## 1 Missing values
 
-**How many missing values do the plausible values for maths, reading and science have? The result should motivate you to check missing values for another type of variable and compare. Is this comparison surprising? Comment**
+
 
 ```{r}
 subsetscores <- pisa %>% select(c('PV1MATH', 'PV2MATH', 'PV3MATH','PV4MATH','PV5MATH', 'PV1READ', 'PV2READ','PV3READ','PV4READ','PV5READ',	PV1SCIE, PV2SCIE, PV3SCIE, PV4SCIE, PV5SCIE))
@@ -627,11 +580,6 @@ subsetscores <- pisa %>% select(c('PV1MATH', 'PV2MATH', 'PV3MATH','PV4MATH','PV5
  pack_rows("Science",11,15)
 ```
 
-There are no missing values for the plausible values of Math, Reading and Science. We check the remaining variables and observe that 15 variables have missing values, with an average proportion of more than 35%, exception made for the variables related to age and grade, which - being administrative variables - have a low percentage of missing values.
-
-Plausible values are the result of an imputation process; PVs represent multiple plausible estimates of a student's performance based on the estimated distribution of each student's ability using a statistical model. Consequently, it is not surprising that we observe no missing values for PV while still having missing values in the dataset. For each student PISA imputes multiple PV - usually 5 .
-
-On the other hand, variables related to self assessment present approximately 33% of missing values; this is a consequence of the survey design, as students are required to answer randomly two thirds of the questions. As a results, the missing values will be missing completely at random and will not introduce bias.
 
 ```{r}
 
@@ -655,9 +603,6 @@ kable(nas[, c(1,3,2)], caption = "Percentage of Missing values", col.names=c("PV
 
 ## 2 Plausible Values
 
-**Describe each step of the function, and explain in your own words the underlying idea of the estimation procedure.**
-
-Before proceeding with explaining the function used for estimation, we give a brief overview of the PISA methodology.
 
 PISA applies a two stage sampling: schools are first sampled and then students are sampled in the participating schools. As a result, two set of weights are used. To estimate student perfomarce PISA uses imputation methods - plausible values. Plausible values are used to obtain unbiased estimates of the parameters, as they are random draws from the estimated distribution of each student's ability. Multiple PV are imputed for each student; relative statistical analyses are independently performed on each of these five plausible values and results are then aggregated to obtain the final estimates of the statistics and their respective standard errors. Consequently, in the estimation of a parameter (eg. a mean) such parameter has to be computed 405 times (i.e. 5 plausible values by one student final weights and 80 replicates) to obtain the final estimate of the parameter and its standard error.
 
@@ -798,23 +743,8 @@ select(-Metric) %>% kable() %>%
   row_spec(0, bold = T) 
 ```
 
-Taking averages at face value, ranking countries by highest score results in the same order for each subject: Finland has the highest values, followed by Viet Nam, France and finally Norway. Such ranking, however, hardly reflects the level of education of the overall national population. It is in fact highly likely that the level of self selection into education plays a major role, with well performing students being more likely to be enrolled in education.
-
-To draw a representative picture of the educational situation in each countries it may be important to use complementary measures:
-
--   the distribution of educational attainment gives us an estimator of the equality of the overall setting and process. We may be more interested in countries with more equally distributed results over higher averages, since a huge gap in performance between students may reveal obstacles to educations of flaws in the teaching system and structure.
-
--   observing improvement over the years in average scores may be more meaningful than observing the year-level static picture
-
--   following scores across the school years may highlight cross-country differences in the level of education at different educational stages
-
 ## 3 Gender
 
-**Using the same methodology as in question 2, compute the average scores in reading, mathematics, and science for girls and boys separately, for each country.**
-
-By computing gender specific averages across subjects we can observe an overall similar trend. Girls significantly and largely outperform boys in reading in every country; the trend for math is less clear, as boys perform better in Vietnam and France, while in Norway and Finland the difference is not significant at the 95% level; finally, girls significantly outperform boys in science in Finland, while the other countries do not experience significant differences in science performance between boys and girls.
-
-The country level ranking by highest score we analysed before holds when computing averages by gender. Finland has the highest values, followed by Viet Nam, France and Norway for every subject (apart from the reading score for girls). In general, while not every cross country difference is statistically significant, we can observe Finland and Viet Nam significantly outperforming France and Norway - with the only exception of girls reading.
 
 ```{r}
 ##Girls
@@ -961,9 +891,7 @@ Vietnam_s <- fun.pv(pvscie, pisa[(pisa$CNT=="Viet Nam" & pisa$GENDER==1),], fold
 
 ## 4 Difference in Gender
 
-**Are differences between girls and boys the same across countries? Find a meaningful, clear and complete way to represent your results, and comment.**
-
-We compute the mean across all subjects of boys and girls and compare at the country level. Observing the overall mean for boys and girls we can conclude that, on average, girls outperform boys in every country; we cannot conclude, however, on the statistical significance of the results.
+We compute the mean across all subjects of boys and girls and compare at the country level. 
 
 ```{r, fig.width=4, fig.height=3}
 
@@ -1016,11 +944,6 @@ ggplot(gender_comp_long, aes(x = Country, y = Mean, fill = Gender, group = Gende
 
 #### Difference by Subject
 
-Computing country and subject level averages by gender we observe that the domain in which girls most significantly outperform boys is reading. The differences in science and math appear less prominent, with boys obtaining slightly better results than girls in math.
-
-Such trend is the beginning of what in later years becomes a an established tendency: girls are more likely to select in humanistic subjects, while boys in STEM courses. While this could potentially be only a matter of students choosing the subjects they are more skilled in, studies demonstrate that being assigned to a biased math teacher (ie. who implicitly associate math with boys) leads to girls lagging behind in math and has negative effects on self confidence and track choice (Carlana, 2019). [^homework-6---sarah-bertoni-1]
-
-[^homework-6---sarah-bertoni-1]: Michela Carlana, Implicit Stereotypes: Evidence from Teachers' Gender Bias. *The Quarterly Journal of Economics*, Volume 134, Issue 3, August 2019, Pages 1163--1224,
 
 ```{r, fig.width=5.5, fig.height=4}
 #Filter the data
@@ -1058,10 +981,6 @@ ggplot(data_long, aes(x = Subject, y = Estimate, color = Gender, shape = Gender)
 
 ## 5 Mean estimation for standard variables
 
-**Have a look at the indices of self-assessment in mathematics. Compare boys and girls along these variables and across countries. Describe each step of the function fun, and explain in your own words the underlying idea of the estimation procedure.**
-
-For this part we decided to focus on the self reported variables of Self-assessment", "Anxiety" and "Interest" related to math.
-
 **Function**
 
 1.  It calculates the weighted mean for the specified variable across the 80 replication using replications weights.
@@ -1072,13 +991,10 @@ For this part we decided to focus on the self reported variables of Self-assessm
 
 4.  Finally, the 95% confidence interval is computed, and the function returns the relative lower and upper bound.
 
-The underlying idea of the estimation procedure is to provide an unbiased estimation of the variables by taking into account sampling weights and the variation within the sample. This approach doesn't use imputed plausible values but computes averages and standard errors directly with the original variables and adjusts for sampling error by using replicates; consequently, it only needs to account for sampling variance.
 
 **Self assessment values across genders**
 
-The results highlight a worrying picture: girls exhibit higher level of anxiety and lower interest and self assessment in math across every analised country. Such results become particurarly relevant when considering that boys outperform girls in math only in France, and not by a large margin.
 
-These findings support our previous remarks about biases and gender attitude towards math: girls are more likely to have low motivation and confidence in their math skills compared to boys, even when their scores are not - on average - lower than boys. This results in the underepresentation of girls in the science, technology, engineering and mathematics fields, both in academia and in the job market.
 
 ```{r}
 self_ass <- list("Self-assessment" = "SCMAT",
@@ -1222,13 +1138,6 @@ select(-Metric, -Gender) %>% rename("Math Assessment"= Variable)%>% kable() %>%
  pack_rows("Girls",7,12)
 ```
 
-Girls report lower levels of self assessment and interest and higher level of anxiety related to math in every country. We observe, however, differences in the intensity of such phenomenon. Vietnam is the country with the highest level of reported interest in math, for both boys and girls. While girls report lower values than boys, it is still worth noticing that the higher average is an encouraging sign, and may be related to quality of education or a different teaching method; once again, however, it is important to consider the level of self selecting into education that a country may experience and the relative bias that arise from measures of educational levels. Contextually, Vietnam experience higher levels of anxiety compared to the other countries - apart from the case of French girls -, which may be an indicator of a valid but strict system. As a matter of fact, the self assessment is very low for girls, and the lowest across countries for boys, while the previously estimated scores rank Vietnam as the second highest perfoming country in math.
-
-France has huge disparities between boys and girls, in particular regarding anxiety and self assessment, which may indicate deeply rooted problems of bias in the educational system.
-
-Finland exhibits the lowest values of anxiety, but we still observe a large difference between boys and girls.
-
-It is interesting to observe how a higher level of interest does not appear to be correlated with self assessment for boys, but such trend may be more fitted to girls, exception made for Vietnam, where the level of self assessment is very low depsite the high interest.
 
 ```{r}
 data<-data.frame(data) %>%  filter(Metric=='Estimate') %>% select(-Metric)
@@ -1270,3 +1179,4 @@ ggplot(data_long, aes(x = Variable, y = Estimate, color = Gender, shape = Gender
 ```{r ref.label=all_labels(), echo=T, eval=FALSE}
 
 ```
+
