@@ -69,25 +69,8 @@ civ <- read_dta("civ_87_08.dta")
 ```
 
 ## 1 Sampling and outliers
+*Level of consumption per capita per each household.*
 
-#### (a) In terms of sampling, what are the main limitations of survey data for measuring inequality?
-
-Measuring inequality through sampling gives rise to many issues and limitations. The main challenge regards estimating income or consumption at the top and at the bottom of the distribution, as the tails of the distribution are more often subject to measurement errors or misreporting of income; additionally, very high and low incomes heavily influence inequality measures, which are particularly sensitive to outliers and can result in biased measures.
-
-Moreover, it is difficult to capture all sources of incomes through surveys, as individuals may not declare part of it both intentionally or unintentionally.
-
-Survey data lead to additional difficulties in terms of estimating a measure of inequality, namely:
-
--   Computing confidence intervals is particularly complicated when estimating indexes as complex functions of sampling data.
--   Using small samples easily leads to large biases as result of even small departures from normality, which translates in the need for a large number of observations.
-
-#### (b) Why can it be important to exclude outliers for measuring inequality?
-
-Large outliers -especially at the top of the distribution- strongly influence the results of inequality measuring; they may influence the shape of the distribution and skew it to the right, with it being otherwise normal, and consequently largely affect the related inference and estimation of inequality. It is important to mention how large outliers may easily be the result of measurement errors, such as misreported incomes or mis-written values or currency mismatch; high income are particularly subject to under reporting, as wealthy individuals may not want to disclose their real income. As a result, it is important to exclude outliers for the aim of measuring inequality so as to obtain a less biased estimation and avoid having results influenced by possible wrongly measured observations.
-
-#### (c) Compute the level of consumption per capita per each household.
-
-To calculate consumption per capita we divide the total household consumption by the number of people in the household; using adult equivalences may be more appropriate to account for the different level of consumption relative to different ages and needs.
 
 ```{r}
 civ <- civ %>% mutate(cons_pc=constot/hhsize) #
@@ -119,7 +102,7 @@ ggplot(civ, aes(y = cons_pc, x = factor(year))) +
 
 ```
 
-By plotting the distribution through an hisogram we can in fact observe a highly right skewed distribution, characteristic that can be explained by the large outliers with high consumption which translate in a heavy right tail.
+### Plotting Distribution
 
 ```{r}
 civ1987 <- civ %>% filter(year==1987) %>% mutate(log=log(cons_pc)) %>% mutate(medianpc=median(log)) %>% mutate(sdpc= sd(log)) %>% filter(log<(medianpc+3*sdpc)&log>(medianpc-3*sdpc))
@@ -186,20 +169,8 @@ plot_bf3<-ggplot(civ2008, aes(cons_pc)) +
 
 grid.arrange(plot_bf1, plot_bf2, plot_bf3, ncol = 1)
 ```
-
-#### (d) It is proposed to computed the (non-weighted) median and standard deviation of the logarithm of consumption per capita for each year separately, and then to exclude those households whose logarithm consumption per capita is higher than the median by more than 3 standard deviations, or lower than the median by more than 3 standard deviations.
-
-**-- Why is it suggested to take the logarithm? Why can ± 3 standard deviations be deemed rather safe?**
-
-A logaritm transformation of the dependent variable allows for a better fitted normal distribution and renders the distribution less sensible to outliers. Excluding observations outside the three standard deviations threshold can be deemed safe since it is empirically observed that in a normal distribution nearly all observed data will fall within three standard deviations of the mean. More precisely, under such empirical rule, 68% of the data will fall within one standard deviation, 95% within two standard deviations, and 99.7% within three standard deviations from the mean. By including only data within ± 3 standard deviations we are consequentely excluding less than the 0.3% of the observations.
-
-**-- Why should you use the unweighted median rather than the weighted median to identify outliers ?**
-
-The unweighted median is more fitted to identify outliers since it is more robust than the weighted median to extreme valeus. A weighted median gives more importance to certain observation, which may result in outliers being ignored or non outliers being identified as such.
-
-**-- Withdraw these observations from your database. This should not drop more than 157 observations in total.**
-
-By plotting the distribution after correcting for outliers and transforming the dependent variable through a logaritmic specification we expect to observe a normal distribution of consumption across years. Correcting for outliers only results in dropping 121 observations.
+#### Plotting adjusted distribution 
+After correcting for outliers and transforming the dependent variable through a logaritmic specification
 
 ```{r, fig.width=4, fig.height=4}
 
@@ -265,7 +236,6 @@ plot4<-ggplot(civ2008, aes(log)) +
 grid.arrange(plot2, plot3, plot4, ncol = 1)
 ```
 
-As a matter of fact, the new distribution of consumption per capita follows a normal distribution, and is therefore more fitted to measure inequality.
 
 ```{r}
 combined_civ <- bind_rows(civ1987, civ1998, civ2008)
@@ -276,9 +246,7 @@ combined_civ <- bind_rows(civ1987, civ1998, civ2008)
 
 ## 2 Consumer Price Index and Purchasing Power Parities
 
-#### (a) Compute the budget shares of food and non-food consumption for the representative households in each region.
-
-We create a dummy variable which identifies the representative households, defined as households with 4 members, male-headed and whose head is a blue-collar worker, either self-employed outside agriculture or a farmer. If a household meets all of these criteria we assign it a value of 1, and 0 otherwise.
+#### Compute the budget shares of food and non-food consumption for the representative households in each region.
 
 ```{r}
 civ <- combined_civ %>% mutate(repr=(ifelse(hhsize==4 & femalehead==0 & (work_farmer==1|work_selfem==1),1,0)))
@@ -354,7 +322,6 @@ kable(combined,caption = 'Food Budget Shares in Cote d’Ivoire from 1987 to 200
 
 ```
 
-The weighted average of food expenditure reveals an higher share allocated to food in the northern region compared to the South. While there is no clear trend over time, food budget share decreased in 2008 compared to 1987 both in the north and in the south.
 
 ```{r}
 #north
@@ -380,10 +347,6 @@ kable(combined,caption = 'Non Food Budget Shares in Cote d’Ivoire from 1987 to
  
 
 ```
-
--   Conversely, we observe higher budget shares allocated to non food expenditure in the South compared to the North.
-
-    Such results can be explained by the predominance of cities and fertile areas in the south, which make such regions more developed and inhabited by richer individuals. As a matter of fact, poverty is much higher in rural regions and far higher in the north of the country, which exhibits a weaker economy and weaker institutions. This gegraphical context aligns with Engel's law, which states that individuals with higher incomes tend to spend a smaller share of their income on food. Once again, there is no clear time trend, but we do observe a net increase in non food budget share from 1987 to 2008 in both regions.
 
 #### (b) CPI
 
@@ -441,7 +404,6 @@ kable(combined_df,caption = 'Laspeyres CPI in Cote d’Ivoire from 1987 to 2008'
 
 ```
 
-We observe higher cost of living in the South compared to the North at any period in time, in line with our previous observations. By merely comparing the same region over time, however, we can conclude that both south and north experienced a similar increase in the cost of living (from 1998 to 2008 the Laspeyres CPI increased approximately by 33% in both cases).
 
 **b.2) the Paasche CPI**
 
@@ -492,7 +454,6 @@ kable(combined_df,caption = 'Paasche CPI in Cote d’Ivoire from 1987 to 2008')%
 
 ```
 
-We observe very similar results for the two indexes, with cost of living increasing over time and being higher in the South. The Paasche index is usually lower than the Laspeyres CPI; however, in our case there is no such clear difference
 
 #### (c) Compute a PPP aggregate for the North region with respect to the South. For each year in your dataset, compute:
 
@@ -574,7 +535,6 @@ kable(combined_df,caption = 'Laspeyres PPP in Cote d’Ivoire from 1987 to 2008'
   row_spec(0, bold = TRUE)  
 ```
 
-The PPP index for the North decreases over time: what you could buy with 100 CFA franc in the South in 1987 was worth 73 CFA francs in the North, while it was worth 69 and 66 CFA francs in 1998 and 2008, respectively. This implies that cost of living have increased more in the South with respect to the North.
 
 **c.2) The Paasche PPP of Northern Cote d'Ivoire.**
 
@@ -709,9 +669,7 @@ kable(combined_df,caption = 'Fisher  PPP in Cote d’Ivoire from 1987 to 2008')%
 
 ```
 
-The three PPP indexes highlight the same trend: prices in the North are decreasing in comparison to prices in the South.
 
-#### (d) Use the Laspeyres CPI and PPP available in Table 3 and convert the values of the consumption variable for all years and regions into comparable values, taking as a reference the South of Cote d'Ivoire in 1987.
 
 *Table 9* shows average consumption per capita weighted by the individual weights previously computed adjusted for inflation -using 1987 as a reference year- and for purchase power parity -using South as a base region. To obtain such variable we divide consumption per capita by the Laspeyres PPP and CPI.
 
@@ -784,7 +742,6 @@ final_data %>%
 
 ```
 
-Nominal average consumption per capita increases over time both at the regional and national level, with consumption in the South being higher than consumption in the North at every period in time. However, once we adjust for PPP and inflation, consumption shows a decreasing trend over time at every regional and national level; moreover, adjusted consumption is higher in the North compared to the South at every period in time.
 
 \newpage
 
@@ -792,7 +749,6 @@ Nominal average consumption per capita increases over time both at the regional 
 
 #### (a) The poverty threshold of one dollar a day is equivalent to 237 franc CFA 1987.
 
-In order to compute the poverty rate we create a dummy which indicates that an household is poor if their adjusted consumption per capita is below the one dollar threshold, equivalent to 237 franc CFA. We use individual household weights to calculate the yearly poverty rate at the regional and national level.
 
 ```{r}
 civ <- civ %>% 
@@ -835,9 +791,8 @@ set_latex_float(table_4, value = "H")
 
 ```
 
-Poverty rates increased over time at every regional level and at the national level, with the South experiencing an higher overall increase; however, poverty rates in the North and in the South are not statistically different in 2008, while they are in the previous years.
 
-#### (b) Now, the poverty threshold is set to two dollars a day, or 474 franc CFA in 1987.
+#### (b) Poverty threshold  set to two dollars a day, or 474 franc CFA in 1987.
 
 ```{r}
 # Creating the new variables
@@ -879,11 +834,9 @@ set_latex_float(table_5, value = "H")
  
 ```
 
-Poverty rates computed using a 2 dollar threshold are statistically higher then the one at the one dollar threshold. The Northern poverty rates experience a larger increase in value than the South: the Norther region exhibits a trend of a larger proportion of people experiencing less extreme poverty compared to the South. Once again, we observe an increase in poverty over time, result in line with the economic crisis experienced by Cote d'Ivoire starting in 1998. Poverty rates in the North and in the South in 1998 and 2008 are not statistically different from each other.
 
 #### (c) Assume that price levels and preferences do not differ across regions. This means that the CPI observed in the South is also valid in the North. Likewise, the PPP factor is 1 across regions.
 
-Assuming the same CPI for both regions we observe statistically higher poverty rates in the North, both compared to the South and to the previous measures in the North. Such result is in line with our previous finding: one franc is worth less in the North than in the South, meaning that by not accounting for such difference we find more people suffering from extreme poverty in the North. At the national level poverty rates are significantly higher, if not by a large amount.
 
 ```{r}
 # Creating the new variables
@@ -999,9 +952,6 @@ ggplot(plotgrowth, aes(x = Percentile, y = GrowthRate, color = Period)) +
   
 ```
 
-The annual growth rate between 1987 and 1998 supports the results found in the poverty rates; growth rate in the 11 years period is negative and approximately equal to -4/% across the whole consumption distribution, with slightly more negative values for the top percentiles. In the 1998-2008 period average annual growth exhibits a more heterogeneous pattern, with negative values -even if higher than for the previous period- up until around the 85th percentile.
-
-The pattern that we seem to observe is characterised by increasing inequality across time, with annual growth rate diverging for the lowest and highest percentiles of the consumption distribution. Consequently, we expect inequality to increase in 2008, with the richest experiencing higher growth compared to the poorest.
 
 \newpage
 
@@ -1182,15 +1132,8 @@ plot3<-ggplot(consumption_all_south, aes(x = cum_pop,  y = cum_consump / max(cum
 grid.arrange(plot1, plot2, plot3, ncol=1)
 ```
 
-We observe higher inequality in 2008 compared to 1987 and 1998, which confirms our previous results and forecasting. Inequality does not vary drastically between 1998 and 1987 at every geographical level, while it is difficult to assess the differences between inequality in the North, South and at the National level.
 
 **Crossing Lorenz Curves**
-
-In order to individuate where the Lorenz curve cross we compute the pairwise differences between Lorenz curves at the national and regional level and observe whether such differences are zero at any percentile.
-
-**National Level**
-
-There is no observable crossing of the Lorenz curves at the national level.
 
 ```{r, fig.width=6, fig.height=4}
 
@@ -1268,7 +1211,6 @@ ggplot(pairwise_diff_all, aes(x = cum_pop, y = diff, color = comparison)) +
 
 **Regional Level**
 
-We compute the pairwise differences in cumulative consumption at the regional level, observing none of little crossing around the 99th percentile in the North. The only clear crossing of the Lorenz Curves across years is at the Southern Regional level, with the curves for 1987 and 1998 crossing around the 75th percentile.
 
 ```{r, fig.width=6, fig.height=4}
 
@@ -1433,3 +1375,4 @@ ggplot(pairwise_diff_all_north, aes(x = cum_pop, y = diff, color = comparison)) 
 ```{r ref.label=all_labels(), echo=T, eval=FALSE}
 
 ```
+
