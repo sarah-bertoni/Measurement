@@ -40,73 +40,6 @@ lfs_11<-read_dta("lfshwk_fr11.dta")
 lfs_12<-read_dta("lfshwk_fr12.dta")
 ```
 
-## a) Definitions
-
-The *13th International Conference of Labour Statisticians*[^1] adopted a resolution concerning concerning statistics of the economically active population, employment, unemployment and underemployment so as to set standards to all countries and allow for the usefulness of such standards in enhancing the international comparability of the statistics.
-
-[^1]: https://www.ilo.org/resource/resolution-concerning-statistics-economically-active-population-employment-0
-
-Employment and unemployment are defined as follow: - One is employed if he/she is above a specified age and during a certain reference period (either one day or one week) was either in paid employment or self-employment. - One is unemployed if he/she is above a specified age and during a certain reference period was without work, currently available for work and seeking work (i.e. had taken specific steps in a taken recent period to seek employment as above defined).
-
-The labour force or "currently active population" consists of all persons who satisfy the requirements to be included either among the employed or the unemployed.
-
-Conversely, the currently inactive population comprises all persons who were not employed or unemployed during the reference period (not economically active) because of either attendance at educational institutions, engagement in household duties, retirement or old age,or other reasons.
-
-Following these definitions, we can determine the labour force participation rate and the unemployment rate:
-
--   **labor force participation rate** = $$\frac{\text{Economically active population}}{\text{Total population > same specified age}}$$
--   **unemployment rate** = $$\frac{\text{Unemployed population}}{\text{Economically active population}}$$
-
-The unemployment rate is defined over the economically active population, while the labour force participation rate is defined over the total population over a certain age threshold that we will later establish.
-
-## b) **Employment and Unemployment rates**
-
-According to the ILO and INSEE we define:
-
--   **Employment rate** $$\frac{\text{Employed population}}{\text{Total population}}$$
-
-Employment rate is usually computed for a subset of the population, the \*working age population\*\*. The working age population is differently identified depending on the definition, and can comprise people aged older than 15 years old (which in our dataset corresponds to the totality of the observations), people in the 15-65 years old range or people in the 15-75 range.
-
--   **Unemployment rate** $$\frac{\text{Unemployed population}}{\text{Economically active population}}$$
-
-Unemployment rate is computed over the active population. Consequently, $\text{Employment rate + Unemployment rate} \neq 1$ since the denominators do not account for the same aggregate.
-
-We go on to more precisely define employment to eventually calculate employment rate.
-
-**The following are considered to be in employment within the meaning of the ILO:**
-
-• persons aged 15-74 who, during the reference week:
-
-◦ have "worked at least one hour, as an employee or self-employed"
-
-◦ or who "work without pay with a member of their family";
-
-◦ or who "had a sideline or a small paid job";
-
-◦ or who nevertheless have a job from which they are absent under certain conditions of reason ;
-
-• The following are considered to be in employment:
-
-◦ without conditions: paid leave, sick leave, maternity or paternity leave, working time arrangements (flexible hours, compensatory rest, part-time, etc.), training authorized by the employer or as part of a work-study/apprenticeship contract, partial unemployment (including technical or bad weather);
-
-◦ parental leave in the event of a planned absence of 3 months or less or receipt of compensatory income linked to the activity such as Prepare;
-
-◦ off-season period in the context of a seasonal activity in the event of regular work in the context of this seasonal activity;
-
-◦ other reason for absence in the event of a planned absence of 3 months or less.
-
-**The following are not considered to be in employment:**
-
-• parental leave lasting more than three months and without receipt of compensatory income linked to the activity such as Prepare;
-
-• off-season period in the context of a seasonal activity, without regular work in the context of this seasonal activity;
-
-• end of employment period;
-
-• other reason in the event of a planned absence of more than 3 months.
-
-• people aged 75 or over who "have a job, even for a few hours, as employees or self-employed"\
-The variables are encoded as following according to the Insee dataset:
 
 ```{r}
 
@@ -155,13 +88,6 @@ dataset <- dataset %>% mutate(employed= case_when(traref==1~ 1,
                          if_all(c(traref, pastra, rabs, rabsp, aidref, temp), is.na) ~ NA_integer_, .default = 0))
 ```
 
-**The following are considered to be in employment within the meaning of the ILO:**
-
-• are without a job during the reference week;
-
-• are available for work in the two weeks following the reference week ;
-
-• have taken an active job search in the last four weeks or have found a job starting within three months .
 
 ```{r}
 variables_new <- data.frame(
@@ -205,7 +131,6 @@ dataset12 <- dataset12 %>% mutate(unemployed= case_when(employed==0 & dispoc == 
 
 Rates, shares and graphs are thereafter computed through the IINSEE definitions and dataset.
 
-The employment rate is defined as the ratio between employed over the working age population, which we defined as the age range between 15 and 74 years old. We also compute the share with the more narrow definition of working age population as 15-65, and the rate on the total population.
 
 ```{r}
 lm11_75<- lm(data=dataset[dataset$ag<75,], formula= employed ~1, weights = weight)
@@ -253,9 +178,6 @@ set_latex_float(table_4, value = "H")
 
 ```
 
-Employment rates computed on the working age population aged 15-65 are higher compared to the ones computed on the 15-75 aged population and the total population, in both reference years; however, they do not vary much - even do they are statistically different - since most individuals aged 64-99 are not active in the labor force.
-
-Employment rates in 2011 are not statistically different compared to employment rates in 2012. However, it is still relevant to notice that the point estimate for employment rates is higher in 2012 compared to 2011 only when considering the 15-65 aged population, and lower otherwise; such difference could be explained by a fast aging population.
 
 **Uneployment Rates**
 
@@ -298,9 +220,7 @@ set_latex_float(table_5, value = "H")
 
 ```
 
-Similarly to the case of employment, unmployment rates computed on the active population aged 15-65 are very close to the ones computed on the 15-75 aged population and the total population, in both reference years, and are not statistically different;
 
-Unemployment rates in 2011 are statistically lower compared to unemployment rates in 2012.
 
 ## c) Own definition of unemployment
 
@@ -374,17 +294,7 @@ set_latex_float(rates_unempl_new, value = "H")
 
 ```
 
-Our new definition, as expected, leads to statistically higher unemployment rates as it comprises an higher percentage of the job seekers. As we mention, the gap in unemployment rates may be caused by:
-
--   individuals not immediately available for a job (eg. because of personal or family reasons, completing education or training, sick or disabled).
-
--   individuals not actively seeking (eg. discouraged workers, persons unable to seek work, people waiting for interview results).
-
-The adjusted rates more accurately reflect the labour market, as they account for the halo between employment and unemployment and between inactivity and unemployment.
-
 ## d) Standard errors
-
-We assume that the LFS sample was drawn randomly: as such, we can compute the standard error of the unemployment rate knowing that the unemployment rate is a **proportion**, which follows a binomial distribution. Denoting $\hat{u}$ the estimator of the unemployment rate, its standard error is: $\hat{\sigma} = \sqrt\frac{\hat{u}(1-\hat{u})}{n-1}$
 
 ```{r}
 x <- sqrt(0.092*(1-0.092)/nrow(dataset))
@@ -395,9 +305,7 @@ y <- sqrt(0.098*(1-0.098)/nrow(dataset12))
 
 -   For 2012: we have $\hat{u}_{2012}$ = 0.098 with $n= 422133$ $$\Longrightarrow \hat{\sigma}_{2012} = \sqrt\frac{0.098\times0.902}{422132}$$ = `r round(y, 5)`.
 
-The resulting "95%%" confidence intervals $\text{CI} = \hat{u} \pm 1.96 \times \text{SE}(\hat{u})$ would account to: $$CI_{2011}=(0.0911,0.0929)$$ $$CI_{2012}=(0.0971,0.0989)$$
 
-Assuming that the sample is random would lead to biased standard errors and artificially low standard errors. To account for differences in the representation of characteristics within the sample and allow to reflect the true confidence intervals of the estimates, sampling weights must be used.
 
 ## e) Evolution
 
@@ -469,11 +377,7 @@ caption(table_6) <- c("2011 shares per Quarter [age 15-65]")
 table_6
 ```
 
-Overall, quarterly shares allow us to observe an increasing, while statistically not significant, trend in the employment share, compensated by a significant decreasing unemployment and a stable inactive population.
 
-Between the first and second quarter unemployment significantly decreases from $6.8\%$ to $6.2\%$, while changes in the employment and inactive shares, which have to compensate the decrease in unemployment, are statistically no significant and therefore do not allow us to draw any conclusion on the direction of the shift; in particular, we cannot conclude whether the decrease in unemployment is due to people leaving the labour force or people become employed.
-
-Between the second and third quarter there appear to be no significant change in the working age population composition; the point estimate for unemployment, however, increases, while inactive share decreases, which would mean that unemployment increases due to inactive people joining the labour force, most likely starting to search for a job.
 
 ```{r, fig.width=4, fig.height=3}
 
@@ -557,7 +461,6 @@ caption(table_6) <- c("2012 Shares per Quarter [age 15-65]")
 table_6
 ```
 
-Similarly to 2011, employment share between the first and second quarter of 2012 increases (while being the decrease statistically not significant), while unemployment share appears to be statistically lower in the second quarter, with an overall stable inactive share, which would represent a shift from unemployment to employment, eg. job-seeking people finding an occupation.
 
 ```{r, fig.width=4, fig.height=3}
 
@@ -607,9 +510,6 @@ ggplot(results12_long, aes(x = factor(Quarter), y = Value, fill = Category)) +
 
 We compute the unemployment rate and labor force participation by demographics, according to the official definition.
 
-Men appear to experience a lower unemployment rate, even though such difference is not statistical significant; an higher unemployment rate could be associated with labour discrimination experienced by women, both for personal biases of the employeers and for leagl causes such as possible maternity leave.
-
-On average, men are statistically more active in the labour force; such result can be explained by a higher share of women not pursuing a career in favour of taking care of the household, as well as extended or perment absence from the labour force due to maternity.
 
 ```{r}
 # Gender
@@ -671,10 +571,6 @@ plot1 <- ggplot(results_long, aes(x = Gender, y = (100*Value), fill = Category))
 set_latex_float(table_women, "H") 
 
 ```
-
-Unemployment rates and partecipation rate vary widely across age groups, with every difference being statistically significant. The most active group is represented by the 25-50, as, intuitively, it corresponds to people who just entered the labour force after ending the education cycle - and does not include retirees.
-
-Nonetheless, the middle group experience higher unemployment rate than the 50-64, which, conversely, is less active in the labour force, characteristic explained by retirement. The most striking observable result is represented by the high young unemployment rate, which paints a worrying picture of the labour market. Young people are less active in the labour force due to the high percentage of students.
 
 ```{r}
 ##age
@@ -755,12 +651,6 @@ plot2 <- ggplot(results_age_long, aes(x = AgeGroup, y = (100 * Value), fill = Ca
 set_latex_float(table_age, "H") 
 
 ```
-
-Unemployment and labour partecipation rates in 2012 highlights the positive returs to education in France, as people holding a degree higher than BAC experience significantly lower unemployment rates and higher partecipation in the labour force than those with an high school diploma or lower and those with a vocational diploma.
-
-On the other hand, those in possession of a vocational diploma are less likely to be unemployed and on average more likely to be in the labour force than those without diploma or with an high school diploma.
-
-The positive relationship between labour force participation and educational level may be explained by the high unemployment rates for the lower educated, which may lead many discouraged workers to leave the labour force.
 
 ```{r}
 
@@ -927,3 +817,4 @@ table8
 
 
 ```
+
