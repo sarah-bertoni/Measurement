@@ -74,7 +74,6 @@ SILC <- readRDS("silc")
 
 **(a) US defined poverty lines into local currencies**
 
-The US defined poverty lines are given in dollars; in order to obtain the thresholds in the value of the local currencies we have to multiply the dollar defined ones by the PPP. However, in order to be able to compare the poverty lines and better comment on them, we additionally convert them to euros by dividing the local currency ones by the exchange rate between local currency and euros (which will, of course, result in no modification for Spain).
 
 ```{r}
 poverty <- SILC %>%  filter(hb020%in%c('UK','ES','DK')) %>% select(c(usthr06,hb020 , hx010, db090))
@@ -128,11 +127,9 @@ euro_poverty_lines <- huxreg("Poverty Line ES" = poverty_line_es_euro,
 set_latex_float(euro_poverty_lines, value = "H")
 ```
 
-The valueS of the poverty line can provide an indication on the overall level of income necessary to meet essential needs in each country: a lower poverty line reflects an economy with lower prices - since the US poverty line is calculated by using the average share of food expenditures in total income. Consequently, a lower poverty line reflects lower living costs: the cost of living is therefore the lowest in Spain, followed by the UK and finally Denmark, which has the highest cost of living among the three countries.
 
 **(b) Calculate the (US defined) household's gross income.**
 
-We calculate the gross income form the available income using the following formula:
 
 $$gross\_income = (hy020\cdot hy025 + hy120g + hy130g + hy140g-hy070) \cdot hx010$$
 
@@ -160,9 +157,7 @@ Where:
 
     -   hy070 = Housing allowances.
 
-Our measure of gross income will be imperfectly estimated since many varibales used to compute it are missing from the dataset. We convert using only exchange rates because we already converted poverty lines using PPP.
 
-We additionally checked the presence of missing values in the used variable to ensure it would not constitute an issue or bias in the calculation of income.
 
 ***Percentage of missing values***
 
@@ -205,11 +200,9 @@ groos_income_lm <- huxreg("Spain" = income_es,
 set_latex_float(groos_income_lm, value = "H")
 ```
 
-The average gross income per country we obtain reflect our previous findings on poverty lines (since, in theory, higher costs of living should be met with higher national wages): Denmark has the highest average gross income, followed by the United Kingdom and, lastly, Spain.
 
 **(c) Percentage of poor households.**
 
-We calculate household poverty rate using the following formula:
 
 $$
 \text{Household Poverty Rate} = \frac{\sum_{i=1}^{N} \text{poor\_hh}_i \times \text{weight}_i}{\sum_{i=1}^{N} \text{weight}_i}
@@ -252,11 +245,9 @@ set_latex_float(poverty_hh, value = "H")
 
 ```
 
-We observe huge discrepancies for poverty rates across countries: Spain exhibits a household poverty rate of 17.1%, followed by the UK with 10.6% and Denmark with the lowest rate of 4.2%.
 
 **(d) Individual poverty rates.**
 
-We then proceed to calculate individual poverty rates by computing the same weighted mean as before but using weights that allow to estimate statistics on the whole population, namely by multiplying household weights by the number of people in the household so as to attribute more weight to people in large households.
 
 $$\text{Individual Poverty Rate} = \frac{\sum_{i=1}^{N} \text{poor\_hh}_i \times \text{weight}_i \times \text{n\_pers}}{\sum_{i=1}^{N} \text{weight}_i \times \text{n\_pers}}$$
 
@@ -280,7 +271,6 @@ poverty_ind <- huxreg("Poverty Rate ES" = irate_spain,
 set_latex_float(poverty_ind, value = "H")
 ```
 
-We observe lower poverty rates for individuals than for households; to test that the average poverty rates are in fact statistically different we perform a Welch's test, which allows to test whether two populations with unequal sample sizes and variances have the same mean.
 
 ```{r}
 tbl_4 <- data.frame(Country = unique(poverty$hb020),`Household Poverty rates` = rep(NA, 3), `Individual Poverty rates` = rep(NA, 3), Difference = rep(NA, 3), `P-value` = rep(NA, 3))
@@ -306,9 +296,7 @@ kable(tbl_4, booktabs = F, align = "c", longtable = F,
 
 ```
 
-We can conclude that the individual poverty rates are statistically significant form the household level poverty rates.
 
-Lower individuals poverty rates would reflect a economic situation in which smaller households are, on average, poorer; this could be explained by richer couples having more children, as it is the trend in developed countries. To test such hypothesis we run a binary regression: we regress the number of people in a household on the probability of such household of being poor.
 
 ```{r}
 poverty <- poverty %>% mutate("Number of people in the Household"=SILC$n_pers)
@@ -332,11 +320,10 @@ models_size_poor_US <- huxreg("Spain"=slm_poor_size_US, "Denmark"=dlm_poor_size_
 set_latex_float(models_size_poor_US, value = "H")
 ```
 
-We observe that increasing the number of people in the household by one person is associated with an average decrease in the probability of the household of being poor for each country; such result confirm our hypothesis and allows for an explanation of lower individual poverty rates compared to household ones. In fact, if smaller households, meaning in particular one persons households, are more likely to be poor, household level poverty rates will be higher.
 
 ### **1.2.2 Calculation of the percentage of people who are "at risk of poverty" according to the EU definition**
 
-**(a) Compute the equivalized** **household size and the household's adult-equivalent income.**
+**Compute the equivalized** **household size and the household's adult-equivalent income.**
 
 The equivalized household size is computed by assigning a weight to all members of the household and adding them up:
 
@@ -404,9 +391,8 @@ models_income <- huxreg("Spain" = lm_eqi_house_es,
 set_latex_float(models_income, value = "H")
 ```
 
-**(b) For each country in your dataset, estimate the median adult-equivalent income as accurately as you can, using all the available information in the data. Then calculate, for each country, the poverty threshold according to the EU definition.**
+**Estimation of the median adult-equivalent income as accurately as you can, using all the available information in the data. Then calculate, for each country, the poverty threshold according to the EU definition.**
 
-We estimate the median adult-equivalent income as a weighted median using household level weights; we observe, once again, higher median adult equivalent income for Denmark, followed by the UK and then Spain. Such result reflects the one obtained by comparing the US defined poverty lines, suggesting the relative order in the national cost of living.
 
 ```{r}
 
@@ -425,13 +411,7 @@ kable( poverty %>% group_by(hb020) %>%  summarise('EU Poverty Line'= weightedMed
 
 ```
 
-**(c) Dummy variable equal to 1 if the household is "poor" (below the threshold) according to the EU definition, 0 if it is above the threshold.**
-
-We construct a dummy variable equal to 1 if the household is poor, meaning if it is below the EU defined poverty line, set at 60% of the median income.
-
-$$\text{household poor} = \begin{cases} 1 & \text{if house equivalised income< EU poverty line}\\ 0 & \text{if house equivalised income> EU poverty line} \end{cases}$$
-
-**(d) Percentage of households who are poor, and the percentage of individuals who are poor according to this definition, using weights.**
+**Percentage of households who are poor, and the percentage of individuals who are poor according to this definition, using weights.**
 
 ```{r}
 poverty <- poverty %>%  
@@ -478,7 +458,6 @@ models_rates <- huxreg("Poverty Rate ES" = irate_spain,
 set_latex_float(models_rates, value = "H")
 ```
 
-Once again, we observe lower individual poverty rates (statistically different at the 5%level) compared to household level poverty rates; it is likely that, once again, one person households are more likely to be poor, increasing the household level poverty rates. To test for such hypothesis we run a regression of number of people in the household on the likelihood of being poor.
 
 ```{r}
 slm_poor_size_EU <- summary(lm(data=poverty_spain, formula= poor_EU~`Number of people in the Household`))
@@ -496,26 +475,9 @@ models_size_poor_eu <- huxreg("Spain"=slm_poor_size_EU, "Denmark"=dlm_poor_size_
 set_latex_float(models_size_poor_eu, value = "H")
 ```
 
-Once again, we observe a negative correlation between number of people in the household and probability of the household of being poor, confirming our intuition. \\ \\
 
-**Equivalence scales**\\ - Take into account decreasing marginal cost of additional family units - Lower marginal cost of children\\ \\ **Issues**\\ - Should be context dependent - and they are not. (eg. specific numbers assigned to adult and children could be national dependent on social benefits if, for example, there are more benefit for more children depending on the welfare of country.) - Assume budget is common to all household members
 
-### **1.3 In light of your results, why does the poverty rate vary according to the definition used (US vs. EU definitions of poverty) ?**
-
-Using the two different definitions yields different values of the poverty rates, with the EU defined poverty rates being higher for each country, both at the household and individual level.
-
-1.  The first main difference in the two approaches is given by how poverty is measured: the US definition measures poverty in absolute terms, as it indicates whether a person or household can meet the basic needs; on the other hand, the UE defined measure of poverty accounts for relative poverty, as it compares the unit's level of income to the 60% of the national median income (median is more robust measure of mean; we do not want a measure of inequality, mean would be very sensible to changes in the top). This could lead EU poverty rates to embrace a larger portion of the population, depending on the national economic structure.
-
-2.  A second important difference arises from the fact that the two indexes differently compute the control for the demographic composition of the household. Under the US definition, different poverty lines are constructed based on household size and the age of household members: they take into account the number of children under 18, the number of people over 65 years old and the total number of components of the household. The EU-defined equivalised household size, on the other hand, assigns different weights to people aged under or over 14, as well as to the first adult, which has a higher weight.
-
-3.  The measure of income varies across the two definition:
-
--   the US defined poverty rates are calculated through gross income, meaning that taxes are not taken into consideration; moreover, only earnings and money transfers are included, while in-kind transfers are not.
--   the EU defined poverty measure is based on the measure of net income - which detracts taxes - and includes the earnings and transfers received by the household. Consequently, the resulting measure of income will heavely depend on the tax regime and welfare of the country.
-
-\newpage
-
-## Exercise 2 Human development index
+## Human development index
 
 ```{r}
 SILC <- readRDS("silc")
@@ -524,19 +486,13 @@ hdi <- read_dta("hdi_2019.dta")
 
 ```
 
-### 2.1 Compare and contrast the old vs. new definition of the HDI index
+### 2.1 Old vs. new definition of the HDI index
 
 (a) **The choice of the functional form that is used to compute the index.**
 
-    -   The old index was computed through a simple aritmetic mean, meaning that every element of the index has an equal weight of $\frac{1}{3}$ of the total index; each index (health, aducation and income) is normalised form 0 to 1 by being scaled by the difference between the upper and lower bound. GDP and GNI are under a logarithmic transformation, ensuring diminishing returns to income on HDI. Being an arithmetic mean, each element exhibits constant return on HDI, meaning that the marginal effects are independent form the level of the other indexes.
-
-    -   The new index is in the form of a geometric mean; this allows to take into account correlation between the different parts of the index. Consequently, the marginal effect of each index (life expectancy, income and years of schooling) on the HDI index depends on the level of the others.
 
 (b) **Educational indicator**
 
-Under the old definition the educational indicator was based on a combination of the adult literacy rate (two-third weight) and the gross enrollment rate in primary, secondary and tertiary education (one-third weight). Differently, under the new definition, the index is computed as a combination of the average years of schooling -for individuals aged 25 or older- and the expected years of schooling, with equal weight. The old index relies on less informative indicators, as literacy and enrollment rates are increasing worldwide and do not represent a good measure of education. Years of schooling, however, are a stricter criteria which allows for a better representation of education and most likely exhibits a higher average across countries. In general, the old index is a stock measure while the new index is a measure of flow.
-
-Consequently, the new education index will probably be lower; in order to test for such hypothesis we compute the average of the educational indexes for both the new and old definition.
 
 ```{r}
 hdi <- hdi %>% mutate(educ_index_new = ((1/2)*(mys/15)+(1/2)*
@@ -591,15 +547,11 @@ ggplot(data = hdi_long, aes(x = value, fill = Index)) +
 
 ```
 
-As expected, we observe, under the old index, a hightly rigth skewed distribution, meaning that most countries exhibit an old educational index close to the upper bond of 100%. The new education index, however, exhibit higher variance across countries and a distribution closer ot a normal distribution.
 
 (a) **Income indicator**
 
-The old income index uses the measure of national gross domestic product, while the new index relies on the measure of Gross National Income. National GDP measures the income generated by production activities on the economic territory of the country, while GNI refers to the income generated by the residents of a country, independently of where it is earned.[^1].
 
-[^1]: OECD (2016), "National income per capita", in OECD Factbook 2015-2016: Economic, Environmental and Social Statistics, OECD Publishing, Paris, https://doi.org/10.1787/factbook-2015-17-en.
 
-Using GNI allows to have a better reflection of the economic situation of the national population, as GDP does not give any indication on the distribution of the wealth; countries with a favorable economic condition or tax regime can attract a large amount of foreign capital and host foreign production, without experiencing a distribution of the wealth produced to the national population.
 
 ```{r, fig.width=4, fig.height=3}
 
@@ -647,7 +599,7 @@ grid.arrange(plot1, plot2, ncol = 2)
 
 ```
 
-[**Example of Ireland and Luxembourg:**]{.underline} Ireland and Luxembourg represent stricking examples of the difference between GDP and GNI; the two countries experience a large inflow of foreign investments and capital which profits do not contribute to the country GNI, along with a high percentage of foreign workers who may decide to send their earnings to their home countries.
+[**Example of Ireland and Luxembourg:**]
 
 ```{r}
 hdi %>%
@@ -702,7 +654,6 @@ hdi%>% ggplot(aes(x=old_HDI, y=new_HDI)) + geom_point(color=viridis(120))+ theme
 higher <- hdi$new_HDI<hdi$old_HDI
 ```
 
-By plotting the indexes under the old and new definition we can observe that the new index exhibits lower value for each country in the data set. Nonetheless, we notice that the fitted line is slightly convex, meaning that countries with low HDI index values experience a lower variation in the value of the old and new index.
 
 ### 2.3 Uneven development across the three components of the index
 
@@ -732,9 +683,7 @@ set_latex_float(huxreg("Regression output for difference in old and new index an
                   align = "center"), value = "H")
 ```
 
-An increase in the deviation across the indexes - our measure of uneven development- is associated with a 0.052 increase in the difference between the old and the new indicator; since the old indicator yields higher values, we can conclude that an increase in the variance leads to a penalty in terms of lower values of the new HDI indicator.
 
-We can empirically observe how this index disadvantages countries with uneven development. Keeping everything else constant, we analyse how the increase in the new human development index would be for Niger -the country exhibiting the lowest HDI in the dataset- if it were to increase its life expectancy by 50 years, bringing the $LE_{Niger}$ from $42.42$ to $112.42$ years (a very unrealistic life expectancy even for high income countries, considering that the highest life expectancy in the dataset is $LE_{Hong Kong}=84.86$ ).
 
 ```{r}
 Niger <- hdi %>% filter(new_HDI==min(new_HDI)) %>% select(c(country,le,eys,mys,gni,new_HDI)) %>% mutate(le=le+50) %>% mutate(new_HDI_le = (((le-20)/(85-20))^(1/3))
@@ -810,9 +759,8 @@ table<-huxtable::huxreg((list), error_format = "({std.error})",
 set_latex_float(table, value = "H")
 ```
 
-**a) Increasing LE in bottom and top GNI countries:**
+** Increasing LE in bottom and top GNI countries:**
 
-**Using the data, assess empirically which policy option would be favored if the policymakers are seeking to maximize the average value of the HDI (across all countries) under the old version of the index.**
 
 -   We create a new dataset with values of the life expectancy increased by one for those country whose $gni \leq median(gni)$ , and equal otherwise.
 
@@ -855,9 +803,8 @@ set_latex_float(huxtable::huxreg((list2), error_format = "({std.error})",
 
 ```
 
-Using the old version of the index increasing life expectancy in rich and poor countries leads to the same increase in HDI, meaning the same average HDI; this result steams form the constant return to education on HDI allowed by the arithmetic mean of the old index.
 
-**b) Perform the same comparison using the new version of the HDI index. Which policy option would now be favored?**
+** Perform the same comparison using the new version of the HDI index**
 
 ```{r}
 
@@ -946,16 +893,10 @@ $\Delta\ln GNI^{\star}$ $= \frac{\ln (GNI_i) -\ln(100)}{LE_i-20}$
 
 Under the new definition, the variation in $GNI$ $∆ \ln GNI_i$ , that would be equivalent to the effect of adding an extra year of life expectancy on the $HDI$ index is equal to $= \frac{\ln (GNI_i) -\ln(100)}{LE_i-20}$
 
-**e) Based on the results from questions 4a and 4b, what criticism could be addressed to the new version of the HDI index from the perspective of promoting human development?**
-
-While with the old version of the HDI index increasing life expectancy by one year in rich and poor countries leads to the same increase in the average HDI index; with the new version, however, increasing life expectancy in the richest countries allows for a larger increase in the average HDI index. As shown in question c) and d), life expectancy, under the old version of the index, has constant marginal effect on HDI; on the other hand, under the new version, returns to life expectancy are increasing in GNI, meaning that theydepends positively on the level of income.
-
-Such result is problematic: from the perspective of promoting human development it would be more favorable to reduce the gap in life expectancy between poor and rich countries; however, the new index gives more value to an increas in the life expectancy in richer countries. While such approach may have a scientific validity as it is harder to increase life expectancy over a certain threshold, this does not favor the development of poor countries in the context of health care and preventive medicine.
-
-\newpage
 
 ### Complete Code
 
 ```{r ref.label=all_labels(), echo=T, eval=FALSE}
 
 ```
+
